@@ -67,3 +67,9 @@ IDLE
 | 1     | First 8 bytes | IDLE          | Read Destination MAC + first 2 bytes of Source MAC |
 | 2     | Next 8 bytes  | READ_HEADER_2 | Complete Source MAC + EtherType                    |
 
+
+## Design Decision
+
+The initial implementation uses a 64-bit streaming data interface.
+
+This keeps the first version simple and easy to verify. The design should be structured so that future versions can support wider data paths such as 128-bit or 256-bit streams.
