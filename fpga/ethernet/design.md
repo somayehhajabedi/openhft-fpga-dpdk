@@ -73,3 +73,23 @@ IDLE
 The initial implementation uses a 64-bit streaming data interface.
 
 This keeps the first version simple and easy to verify. The design should be structured so that future versions can support wider data paths such as 128-bit or 256-bit streams.
+
+
+
+
+
+
+
+## Design Decision: Parser vs Dispatcher
+
+The Ethernet Parser is responsible only for extracting Ethernet header fields.
+
+It does not decide whether the payload should go to the IPv4 parser, ARP parser, or any future protocol parser.
+
+Protocol routing will be handled by a separate Ethernet Dispatcher module.
+
+This keeps the parser simple, testable, and focused on one responsibility.
+
+
+
+
