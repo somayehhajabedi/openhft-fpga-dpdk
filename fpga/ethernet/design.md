@@ -92,4 +92,28 @@ This keeps the parser simple, testable, and focused on one responsibility.
 
 
 
+## Design Decision: Streaming Interface
+
+The Ethernet Parser uses an AXI4-Stream inspired interface.
+
+The implementation is not tied to any FPGA vendor, but follows the same streaming philosophy:
+
+- data
+- valid
+- ready
+- last
+
+This makes future integration with FPGA IP cores significantly easier.
+
+
+## Design Decision: Shared Stream Interface
+
+All FPGA packet-processing modules will use a shared AXI4-Stream inspired interface.
+
+The common interface is defined in:
+
+```text
+fpga/interfaces/axis_stream_if.sv
+
+
 
