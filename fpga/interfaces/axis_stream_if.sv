@@ -7,4 +7,18 @@ interface axis_stream_if #(
     logic                  tready;
     logic                  tlast;
 
+    modport master (
+        output tdata,
+        output tvalid,
+        output tlast,
+        input  tready
+    );
+
+    modport slave (
+        input  tdata,
+        input  tvalid,
+        input  tlast,
+        output tready
+    );
+
 endinterface
