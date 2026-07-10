@@ -55,6 +55,17 @@ bool MatchingEngine::matchOne(Order* incoming)
             ? incoming->quantity
             : resting->quantity;
 
+    [[maybe_unused]] Trade trade = createTrade(incoming, resting, traded_quantity);
+
+    publisher_.publish(trade);
+
+    /*std::cout << "TRADE: "
+          << "BUY=" << trade.buy_order_id
+          << " SELL=" << trade.sell_order_id
+          << " PRICE=" << trade.price
+          << " QTY=" << trade.quantity
+          << std::endl;*/
+
     incoming->quantity -= traded_quantity;
     resting->quantity -= traded_quantity;
 
@@ -67,10 +78,35 @@ bool MatchingEngine::matchOne(Order* incoming)
     return traded_quantity > 0;
 }
 
+
+Trade MatchingEngine::createTrade(const Order* incoming,
+                                  const Order* resting,
+                                  Quantity traded_quantity) const
+{
+    Trade trade{};
+
+    if (incoming->side == Side::Buy)
+    {
+        trade.buy_order_id = incoming->id;
+        trade.sell_order_id = resting->id;
+    }
+    else
+    {
+        trade.buy_order_id = resting->id;
+        trade.sell_order_id = incoming->id;
+    }
+
+    trade.price = resting->price;
+    trade.quantity = traded_quantity;
+
+    return trade;
+}
+
 int main()
 {
     MatchingEngine engine;
-    Gateway gateway(engine);
+    RiskManager risk_manager;
+    Gateway gateway(engine, risk_manager);
 
     Order sell1{
         .id = 1,

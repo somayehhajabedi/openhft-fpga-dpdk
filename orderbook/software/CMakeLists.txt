@@ -11,4 +11,6 @@ add_executable(
     matching_engine.cpp
     array_order_book.cpp
     ../../gateway/gateway.cpp
+    ../../risk/risk_manager.cpp
+    ../../market_data/trade_publisher.cpp
 )

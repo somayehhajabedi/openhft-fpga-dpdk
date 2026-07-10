@@ -1,13 +1,19 @@
 #include "gateway.hpp"
 
-Gateway::Gateway(MatchingEngine& engine)
-    : engine_(engine)
+Gateway::Gateway(MatchingEngine& engine,
+                 RiskManager& risk_manager)
+    : engine_(engine),
+      risk_manager_(risk_manager)
 {
 }
+
 
 void Gateway::submit(Order* order)
 {
     if (!validate(order))
+        return;
+
+    if (!risk_manager_.check(order))
         return;
 
     engine_.process(order);
