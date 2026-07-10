@@ -10,4 +10,5 @@ add_executable(
 
     matching_engine.cpp
     array_order_book.cpp
+    ../../gateway/gateway.cpp
 )

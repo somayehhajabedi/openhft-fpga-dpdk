@@ -1,5 +1,6 @@
 #include <iostream>
 #include "matching_engine.hpp"
+#include "../../gateway/gateway.hpp"
 
 void MatchingEngine::process(Order* order)
 {
@@ -69,6 +70,7 @@ bool MatchingEngine::matchOne(Order* incoming)
 int main()
 {
     MatchingEngine engine;
+    Gateway gateway(engine);
 
     Order sell1{
         .id = 1,
@@ -91,9 +93,9 @@ int main()
         .quantity = 30
     };
 
-    engine.process(&sell1);
-    engine.process(&sell2);
-    engine.process(&buy);
+    gateway.submit(&sell1);
+    gateway.submit(&sell2);
+    gateway.submit(&buy);
 
     std::cout << "sell1 remaining: " << sell1.quantity << '\n';
     std::cout << "sell2 remaining: " << sell2.quantity << '\n';

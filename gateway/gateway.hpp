@@ -12,4 +12,5 @@ public:
 
 private:
     MatchingEngine& engine_;
+    bool validate(const Order* order) const;
 };
