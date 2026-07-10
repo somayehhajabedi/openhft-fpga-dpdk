@@ -11,6 +11,7 @@ public:
 private:
     bool canCross(const Order* order) const;
     void executeTrade(Order* incoming);
+    bool matchOne(Order* incoming);
 
 private:
     ArrayOrderBook book_;

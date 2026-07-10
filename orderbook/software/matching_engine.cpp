@@ -31,35 +31,39 @@ void MatchingEngine::executeTrade(Order* incoming)
 {
     while (incoming->quantity > 0 && canCross(incoming))
     {
-        const PriceLevel* opposite_level =
-            incoming->side == Side::Buy ? book_.bestAsk() : book_.bestBid();
-
-        if (!opposite_level || !opposite_level->front())
-            return;
-
-        Order* resting = opposite_level->front();
-
-        Quantity traded_quantity =
-            incoming->quantity < resting->quantity
-                ? incoming->quantity
-                : resting->quantity;
-
-        incoming->quantity -= traded_quantity;
-        resting->quantity -= traded_quantity;
-
-        if (resting->level)
-            resting->level->total_quantity -= traded_quantity;
-
-        if (resting->quantity == 0)
-        {
-            book_.cancelOrder(resting->id);
-        }
+        if (!matchOne(incoming))
+            break;
     }
 
     if (incoming->quantity > 0)
-    {
         book_.addOrder(incoming);
-    }
+}
+
+bool MatchingEngine::matchOne(Order* incoming)
+{
+    const PriceLevel* opposite_level =
+        incoming->side == Side::Buy ? book_.bestAsk() : book_.bestBid();
+
+    if (!opposite_level || !opposite_level->front())
+        return false;
+
+    Order* resting = opposite_level->front();
+
+    Quantity traded_quantity =
+        incoming->quantity < resting->quantity
+            ? incoming->quantity
+            : resting->quantity;
+
+    incoming->quantity -= traded_quantity;
+    resting->quantity -= traded_quantity;
+
+    if (resting->level)
+        resting->level->total_quantity -= traded_quantity;
+
+    if (resting->quantity == 0)
+        book_.cancelOrder(resting->id);
+
+    return traded_quantity > 0;
 }
 
 int main()
