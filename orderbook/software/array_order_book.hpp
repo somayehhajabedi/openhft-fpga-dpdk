@@ -16,13 +16,22 @@ public:
     void addOrder(Order* order);
     bool cancelOrder(OrderId id);
 
+    const PriceLevel* bestBid() const;
+    const PriceLevel* bestAsk() const;
+
+
 private:
     std::size_t priceToIndex(Price price) const;
     PriceLevel& getLevel(Side side, Price price);
+    void refreshBestBid();
+    void refreshBestAsk();
 
 private:
     std::array<PriceLevel, MaxPriceLevels> bid_levels_;
     std::array<PriceLevel, MaxPriceLevels> ask_levels_;
+
+    Price best_bid_ = 0;
+    Price best_ask_ = 0;
 
     std::unordered_map<OrderId, Order*> order_index_;
 };

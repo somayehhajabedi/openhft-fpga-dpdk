@@ -8,6 +8,16 @@ void ArrayOrderBook::addOrder(Order* order)
         level.price = order->price;
 
     level.push_back(order);
+    if (order->side == Side::Buy)
+    {
+        if (best_bid_ == 0 || order->price > best_bid_)
+           best_bid_ = order->price;
+    }
+    else
+    {
+       if (best_ask_ == 0 || order->price < best_ask_)
+          best_ask_ = order->price;
+    }
 
     order_index_[order->id] = order;
 }
@@ -23,6 +33,16 @@ bool ArrayOrderBook::cancelOrder(OrderId id)
     PriceLevel* level = order->level;
 
     level->remove(order);
+
+    if (level->empty())
+{
+    if (order->side == Side::Buy && order->price == best_bid_)
+        refreshBestBid();
+
+    if (order->side == Side::Sell && order->price == best_ask_)
+        refreshBestAsk();
+}
+
     order_index_.erase(it);
 
     return true;
@@ -41,4 +61,49 @@ PriceLevel& ArrayOrderBook::getLevel(Side side, Price price)
         return bid_levels_[index];
 
     return ask_levels_[index];
+}
+const PriceLevel* ArrayOrderBook::bestBid() const
+{
+    if (best_bid_ == 0)
+        return nullptr;
+
+    return &bid_levels_[priceToIndex(best_bid_)];
+}
+
+const PriceLevel* ArrayOrderBook::bestAsk() const
+{
+    if (best_ask_ == 0)
+        return nullptr;
+
+    return &ask_levels_[priceToIndex(best_ask_)];
+}
+
+void ArrayOrderBook::refreshBestBid()
+{
+    while (best_bid_ > 0)
+    {
+        PriceLevel& level = bid_levels_[priceToIndex(best_bid_)];
+
+        if (!level.empty())
+            return;
+
+        --best_bid_;
+    }
+
+    best_bid_ = 0;
+}
+
+void ArrayOrderBook::refreshBestAsk()
+{
+    while (best_ask_ > 0 && best_ask_ < MaxPriceLevels)
+    {
+        PriceLevel& level = ask_levels_[priceToIndex(best_ask_)];
+
+        if (!level.empty())
+            return;
+
+        ++best_ask_;
+    }
+
+    best_ask_ = 0;
 }

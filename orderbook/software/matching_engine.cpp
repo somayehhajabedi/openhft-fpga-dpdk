@@ -1,27 +1,99 @@
-#include "array_order_book.hpp"
+#include <iostream>
+#include "matching_engine.hpp"
+
+void MatchingEngine::process(Order* order)
+{
+    if (canCross(order))
+    {
+        executeTrade(order);
+    }
+    else
+    {
+        book_.addOrder(order);
+    }
+}
+
+bool MatchingEngine::canCross(const Order* order) const
+{
+    if (order->side == Side::Buy)
+    {
+        const PriceLevel* best_ask = book_.bestAsk();
+
+        return best_ask && order->price >= best_ask->price;
+    }
+
+    const PriceLevel* best_bid = book_.bestBid();
+
+    return best_bid && order->price <= best_bid->price;
+}
+
+void MatchingEngine::executeTrade(Order* incoming)
+{
+    while (incoming->quantity > 0 && canCross(incoming))
+    {
+        const PriceLevel* opposite_level =
+            incoming->side == Side::Buy ? book_.bestAsk() : book_.bestBid();
+
+        if (!opposite_level || !opposite_level->front())
+            return;
+
+        Order* resting = opposite_level->front();
+
+        Quantity traded_quantity =
+            incoming->quantity < resting->quantity
+                ? incoming->quantity
+                : resting->quantity;
+
+        incoming->quantity -= traded_quantity;
+        resting->quantity -= traded_quantity;
+
+        if (resting->level)
+            resting->level->total_quantity -= traded_quantity;
+
+        if (resting->quantity == 0)
+        {
+            book_.cancelOrder(resting->id);
+        }
+    }
+
+    if (incoming->quantity > 0)
+    {
+        book_.addOrder(incoming);
+    }
+}
 
 int main()
 {
-    ArrayOrderBook book;
+    MatchingEngine engine;
 
-    Order o1{
+    Order sell1{
         .id = 1,
-        .side = Side::Buy,
+        .side = Side::Sell,
         .price = 100,
-        .quantity = 10
+        .quantity = 30
     };
 
-    Order o2{
+    Order sell2{
         .id = 2,
-        .side = Side::Buy,
-        .price = 100,
-        .quantity = 20
+        .side = Side::Sell,
+        .price = 101,
+        .quantity = 50
     };
 
-    book.addOrder(&o1);
-    book.addOrder(&o2);
+    Order buy{
+        .id = 3,
+        .side = Side::Buy,
+        .price = 101,
+        .quantity = 30
+    };
 
-    book.cancelOrder(1);
+    engine.process(&sell1);
+    engine.process(&sell2);
+    engine.process(&buy);
+
+    std::cout << "sell1 remaining: " << sell1.quantity << '\n';
+    std::cout << "sell2 remaining: " << sell2.quantity << '\n';
+    std::cout << "buy remaining: " << buy.quantity << '\n';
 
     return 0;
 }
