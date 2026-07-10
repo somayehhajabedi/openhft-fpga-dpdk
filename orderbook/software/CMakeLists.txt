@@ -9,4 +9,5 @@ add_executable(
     matching_engine
 
     matching_engine.cpp
+    array_order_book.cpp
 )
