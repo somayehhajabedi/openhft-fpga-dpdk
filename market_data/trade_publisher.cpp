@@ -12,3 +12,8 @@ void TradePublisher::publish(const Trade& trade)
           << " QTY=" << trade.quantity
           << '\n';
 }
+
+void TradePublisher::onTrade(const Trade& trade)
+{
+    publish(trade);
+}

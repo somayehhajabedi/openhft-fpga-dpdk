@@ -16,4 +16,5 @@ add_executable(
     ../../sequencer/sequencer.cpp
     ../../dispatcher/event_dispatcher.cpp
     ../../journal/journal.cpp
+    ../../position/position_manager.cpp
 )

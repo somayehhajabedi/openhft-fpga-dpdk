@@ -1,19 +1,16 @@
 #pragma once
 
-#include "../orderbook/software/trade.hpp"
-class Journal;
+#include "../events/i_trade_listener.hpp"
 
-class TradePublisher;
+#include <vector>
 
 class EventDispatcher
 {
 public:
-    EventDispatcher(TradePublisher& trade_publisher,
-                Journal& journal);
+    void addListener(ITradeListener* listener);
 
     void publish(const Trade& trade);
 
 private:
-    TradePublisher& trade_publisher_;
-    Journal& journal_;
+    std::vector<ITradeListener*> listeners_;
 };

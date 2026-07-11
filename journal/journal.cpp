@@ -13,3 +13,8 @@ std::cout
     << " QTY=" << trade.quantity
     << '\n';
 }
+
+void Journal::onTrade(const Trade& trade)
+{
+    write(trade);
+}

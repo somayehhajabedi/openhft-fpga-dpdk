@@ -8,6 +8,9 @@ struct Trade
 
     OrderId buy_order_id;
     OrderId sell_order_id;
+    
+    AccountId buy_account_id;
+    AccountId sell_account_id;
 
     Price price;
     Quantity quantity;
