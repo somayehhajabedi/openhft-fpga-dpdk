@@ -13,4 +13,7 @@ add_executable(
     ../../gateway/gateway.cpp
     ../../risk/risk_manager.cpp
     ../../market_data/trade_publisher.cpp
+    ../../sequencer/sequencer.cpp
+    ../../dispatcher/event_dispatcher.cpp
+    ../../journal/journal.cpp
 )

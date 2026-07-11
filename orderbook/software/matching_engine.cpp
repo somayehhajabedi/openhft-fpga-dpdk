@@ -1,6 +1,16 @@
 #include <iostream>
 #include "matching_engine.hpp"
 #include "../../gateway/gateway.hpp"
+#include "../../market_data/trade_publisher.hpp"
+#include "../../dispatcher/event_dispatcher.hpp"
+#include "../../journal/journal.hpp"
+
+
+
+MatchingEngine::MatchingEngine(EventDispatcher& dispatcher)
+    : dispatcher_(dispatcher)
+{
+}
 
 void MatchingEngine::process(Order* order)
 {
@@ -57,7 +67,7 @@ bool MatchingEngine::matchOne(Order* incoming)
 
     [[maybe_unused]] Trade trade = createTrade(incoming, resting, traded_quantity);
 
-    publisher_.publish(trade);
+    dispatcher_.publish(trade);
 
     /*std::cout << "TRADE: "
           << "BUY=" << trade.buy_order_id
@@ -81,7 +91,7 @@ bool MatchingEngine::matchOne(Order* incoming)
 
 Trade MatchingEngine::createTrade(const Order* incoming,
                                   const Order* resting,
-                                  Quantity traded_quantity) const
+                                  Quantity traded_quantity)
 {
     Trade trade{};
 
@@ -99,15 +109,21 @@ Trade MatchingEngine::createTrade(const Order* incoming,
     trade.price = resting->price;
     trade.quantity = traded_quantity;
 
+    trade.sequence = sequencer_.next();
+
     return trade;
 }
 
 int main()
 {
-    MatchingEngine engine;
+    Journal journal;
+    TradePublisher trade_publisher;
+    EventDispatcher dispatcher(trade_publisher, journal);
+
+    MatchingEngine engine(dispatcher);
+
     RiskManager risk_manager;
     Gateway gateway(engine, risk_manager);
-
     Order sell1{
         .id = 1,
         .side = Side::Sell,
