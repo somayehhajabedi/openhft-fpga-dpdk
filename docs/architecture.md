@@ -6,7 +6,22 @@ This project implements a simplified low-latency market data pipeline inspired b
 
 The goal is to process market data from the network interface all the way to an order book while comparing software (DPDK) and hardware (FPGA) implementations.
 
----
+## Design Philosophy
+
+The software pipeline is intentionally implemented as a
+layered protocol stack.
+
+Each parser owns a single protocol layer and exposes the
+payload of the next protocol.
+
+This separation allows the same parsers to be reused with:
+
+- DPDK
+- PCAP files
+- FPGA
+- Unit tests
+
+without modification.
 
 ## High-Level Architecture
 
@@ -30,10 +45,10 @@ The goal is to process market data from the network interface all the way to an 
 |     FPGA Pipeline    |            |     DPDK Pipeline    |
 +----------------------+            +----------------------+
 | Ethernet Parser      |            | Packet Receiver      |
-| ARP Parser           |            | Packet Parser        |
-| IPv4 Parser          |            | ITCH Parser          |
-| UDP Parser           |            |                      |
-| ITCH Parser          |            |                      |
+| ARP Parser           |            | Ethernet Parser      |
+| IPv4 Parser          |            | IPv4 Parser          |
+| UDP Parser           |            | UDP parser           |
+| ITCH Parser          |            | ITCH parser          |
 +----------+-----------+            +----------+-----------+
            |                                   |
            +---------------+-------------------+
@@ -76,19 +91,27 @@ Each module removes one protocol header and forwards the remaining payload to th
 
 ```
 NIC
-    │
-    ▼
+ │
+ ▼
 DPDK RX
-    │
-    ▼
-Packet Parser
-    │
-    ▼
+ │
+ ▼
+Receiver
+ │
+ ▼
+Ethernet Parser
+ │
+ ▼
+IPv4 Parser
+ │
+ ▼
+UDP Parser
+ │
+ ▼
 ITCH Parser
-    │
-    ▼
-Software Order Book
-```
+ │
+ ▼
+Order Book
 
 ---
 
@@ -96,17 +119,25 @@ Software Order Book
 
 ### FPGA
 
-- Ethernet Parser
-- ARP Parser
-- IPv4 Parser
-- UDP Parser
-- ITCH Parser
+    - Ethernet Parser
+    - ARP Parser
+    - IPv4 Parser
+    - UDP Parser
+    - ITCH Parser
 
 ### DPDK
 
-- Packet Receiver
-- Packet Parsing
-- Benchmarking
+    - Receiver
+
+    - Ethernet Parser
+
+    - IPv4 Parser
+
+    - UDP Parser
+
+    - ITCH Parser
+
+    - Benchmarks
 
 ### Order Book
 
@@ -133,3 +164,22 @@ Software Order Book
 - PCIe Integration
 - 10G/25G Ethernet
 - Hardware Benchmarking
+
+
+## Current Status
+
+✅ DPDK Receiver
+
+✅ Ethernet Parser
+
+✅ IPv4 Parser
+
+✅ UDP Parser
+
+⬜ ITCH Parser
+
+⬜ Order Book
+
+⬜ Matching Engine
+
+⬜ FPGA Pipeline
