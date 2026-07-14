@@ -1,10 +1,22 @@
 #include "receiver.hpp"
+#include "config.hpp"
+
+#include "../parser/ethernet/ethernet.hpp"
+#include "../parser/ipv4/ipv4.hpp"
+#include "../parser/udp/udp.hpp"
 
 #include <iostream>
 #include <rte_eal.h>
 #include <rte_ethdev.h>
 #include <rte_mbuf.h>
 #include <rte_lcore.h>
+#include <rte_ether.h>
+#include <rte_ip.h>
+#include <rte_udp.h>
+#include <cstring>
+
+
+
 
 bool Receiver::initialize(int argc, char** argv)
 {
@@ -50,9 +62,116 @@ void Receiver::run()
        {
           return;
        }
+       
+       rte_mbuf* packets[BURST_SIZE];
+
+       while (true)
+       {
+          const uint16_t received =
+          rte_eth_rx_burst(
+            0,
+            0,
+            packets,
+            BURST_SIZE);
+
+          if (received == 0)
+            continue;
+
+          std::cout << "Received "
+              << received
+              << " packets"
+              << std::endl;
+
+            for (std::uint16_t i = 0; i < received; ++i)
+            {
+                rte_mbuf* packet = packets[i];
+
+                const std::uint8_t* data =
+                    rte_pktmbuf_mtod(packet, const std::uint8_t*);
+
+                const std::size_t packet_length =
+                    rte_pktmbuf_pkt_len(packet);
+
+                const EthernetHeader* ethernet =
+                    EthernetParser::parse(data, packet_length);
+
+                if (!ethernet)
+                {
+                    rte_pktmbuf_free(packet);
+                    continue;
+                }
+
+                if (EthernetParser::etherType(ethernet) != 0x0800)
+                {
+                    rte_pktmbuf_free(packet);
+                    continue;
+                }
+
+                const std::uint8_t* ipv4_data =
+                    EthernetParser::payload(ethernet);
+
+                const std::size_t ipv4_available_length =
+                    packet_length - sizeof(EthernetHeader);
+
+                const IPv4Header* ipv4 =
+                    IPv4Parser::parse(
+                        ipv4_data,
+                        ipv4_available_length);
+
+                if (!ipv4)
+                {
+                    rte_pktmbuf_free(packet);
+                    continue;
+                }
+
+                if (ipv4->protocol != 17)
+                {
+                    rte_pktmbuf_free(packet);
+                    continue;
+                }
+
+                const std::uint8_t* udp_data =
+                    IPv4Parser::payload(ipv4);
+
+                const std::size_t udp_available_length =
+                    IPv4Parser::payloadLength(ipv4);
+
+                const UDPHeader* udp =
+                    UDPParser::parse(
+                        udp_data,
+                        udp_available_length);
+
+                if (!udp)
+                {
+                    rte_pktmbuf_free(packet);
+                    continue;
+                }
+
+                const std::uint8_t* payload =
+                    UDPParser::payload(udp);
+
+                const std::uint16_t payload_length =
+                    UDPParser::payloadLength(udp);
+
+                std::cout << "Payload: ";
+
+                std::cout.write(
+                    reinterpret_cast<const char*>(payload),
+                    payload_length);
+
+                std::cout << '\n';
+
+                rte_pktmbuf_free(packet);
+            }
+        }
+            
     }
- 
+        
 }
+
+
+
+
 
 void Receiver::listPorts()
 {
