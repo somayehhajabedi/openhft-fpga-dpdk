@@ -14,12 +14,15 @@ add_executable(parser_tests
     unit/parser/ethernet_test.cpp
     unit/parser/ipv4_test.cpp
     unit/parser/udp_test.cpp
+    unit/parser/itch_test.cpp
+
 
     integration/parser_pipeline_test.cpp
 
     ../dpdk/parser/ethernet/ethernet.cpp
     ../dpdk/parser/ipv4/ipv4.cpp
     ../dpdk/parser/udp/udp.cpp
+    ../dpdk/parser/itch/itch.cpp
 )
 
 target_include_directories(parser_tests PRIVATE
