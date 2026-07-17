@@ -285,3 +285,118 @@ Journal / Analytics
 5. Verify the remaining quantity is 750
 6. Verify the order ID and price level remain unchanged
 ```
+
+
+## ITCH Order Replace (`U`)
+
+The ITCH `Order Replace` message replaces an existing order with a new order reference number, quantity, and price.
+
+The original order is removed from the order book, and the replacement order is inserted as a new order.
+
+### Message fields
+
+| Field | Description |
+|---|---|
+| Message Type | Always `U` |
+| Original Order Reference Number | Identifies the existing order |
+| New Order Reference Number | Identifies the replacement order |
+| Shares | New order quantity |
+| Price | New order price |
+
+### Processing flow
+
+```text
+OrderReplaceWireMessage
+        ↓
+OrderReplaceParser
+        ↓
+OrderReplaceMapper
+        ↓
+ITCHHandler::onOrderReplace()
+        ↓
+ArrayOrderBook::replaceOrder()
+        ↓
+Remove original order
+        ↓
+Insert replacement order
+```
+
+### Behavior
+
+Given an existing order:
+
+```text
+Order ID: 4001
+Side: Buy
+Price: 12500
+Quantity: 1000
+```
+
+and a replace message:
+
+```text
+Original Order ID: 4001
+New Order ID: 4002
+New Price: 12750
+New Quantity: 800
+```
+
+the original order is removed and replaced with:
+
+```text
+Order ID: 4002
+Side: Buy
+Price: 12750
+Quantity: 800
+```
+
+The side and account information are preserved from the original order.
+
+### Queue priority
+
+The replacement order does not keep the original order's FIFO priority.
+
+It is inserted as a new order at the end of its target price level.
+
+### Invalid operations
+
+The operation returns `false` when:
+
+- the original order does not exist
+- the new order reference number is zero
+- the new quantity is zero
+- the new order reference number is equal to the original reference number
+- the new order reference number already exists
+- the wire message is invalid or too short
+
+No order-book state is modified when validation fails.
+
+### Order book API
+
+```cpp
+bool replaceOrder(
+    OrderId originalOrderId,
+    OrderId newOrderId,
+    Quantity newQuantity,
+    Price newPrice);
+```
+
+### Handler API
+
+```cpp
+bool onOrderReplace(
+    const std::uint8_t* payload,
+    std::size_t length);
+```
+
+### Integration test scenario
+
+```text
+1. Add an order with ID 4001, price 12500, and quantity 1000
+2. Verify that it is the current best bid
+3. Send an Order Replace message
+4. Replace it with ID 4002, price 12750, and quantity 800
+5. Verify that onOrderReplace() returns true
+6. Verify that the new order is the best bid
+7. Verify the new order ID, price, and quantity
+```

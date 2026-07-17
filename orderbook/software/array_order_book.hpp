@@ -23,6 +23,12 @@ public:
         bool executeOrder(
         OrderId id,
         Quantity executedQuantity);
+        
+    bool replaceOrder(
+        OrderId originalOrderId,
+        OrderId newOrderId,
+        Quantity newQuantity,
+        Price newPrice);    
 
     const PriceLevel* bestBid() const;
     const PriceLevel* bestAsk() const;

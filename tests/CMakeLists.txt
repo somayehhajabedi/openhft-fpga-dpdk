@@ -29,14 +29,16 @@ add_executable(parser_tests
     unit/mapper/order_delete_mapper_test.cpp
     unit/parser/order_executed_parser_test.cpp
     unit/mapper/order_executed_mapper_test.cpp
-
-
+    unit/parser/order_replace_parser_test.cpp
+    unit/mapper/order_replace_mapper_test.cpp
 
 
     integration/parser_pipeline_test.cpp
     integration/itch_handler_cancel_test.cpp
     integration/itch_handler_delete_test.cpp
     integration/itch_handler_execute_test.cpp
+    integration/itch_handler_replace_test.cpp
+
 
     ${PROJECT_ROOT}/dpdk/parser/ethernet/ethernet.cpp
     ${PROJECT_ROOT}/dpdk/parser/ipv4/ipv4.cpp
@@ -52,6 +54,8 @@ add_executable(parser_tests
     ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_delete_mapper.cpp
     ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_executed_parser.cpp
     ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_executed_mapper.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_replace_parser.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_replace_mapper.cpp
 
 )
 

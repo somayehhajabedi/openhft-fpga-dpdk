@@ -75,6 +75,50 @@ bool ArrayOrderBook::reduceOrder(
     return true;
 }
 
+bool ArrayOrderBook::replaceOrder(
+    OrderId originalOrderId,
+    OrderId newOrderId,
+    Quantity newQuantity,
+    Price newPrice)
+{
+    auto it = order_index_.find(originalOrderId);
+
+    if (it == order_index_.end())
+        return false;
+
+    if (newOrderId == 0 ||
+        newQuantity == 0 ||
+        newOrderId == originalOrderId)
+    {
+        return false;
+    }
+
+    if (order_index_.find(newOrderId) != order_index_.end())
+        return false;
+
+    Order* order = it->second;
+
+    const Side side = order->side;
+    const AccountId accountId = order->account_id;
+
+    if (!cancelOrder(originalOrderId))
+        return false;
+
+    order->id = newOrderId;
+    order->account_id = accountId;
+    order->side = side;
+    order->price = newPrice;
+    order->quantity = newQuantity;
+
+    order->level = nullptr;
+    order->prev = nullptr;
+    order->next = nullptr;
+
+    addOrder(order);
+
+    return true;
+}
+
 bool ArrayOrderBook::executeOrder(
     OrderId id,
     Quantity executedQuantity)

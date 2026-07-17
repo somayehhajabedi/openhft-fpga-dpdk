@@ -27,6 +27,9 @@ public:
     bool onOrderExecuted(
         const std::uint8_t* payload,
         std::size_t length);
+    bool onOrderReplace(
+        const std::uint8_t* payload,
+        std::size_t length);
 
 private:
 
