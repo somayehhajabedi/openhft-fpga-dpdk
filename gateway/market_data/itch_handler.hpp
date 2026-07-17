@@ -19,6 +19,9 @@ public:
     bool onOrderCancel(
         const std::uint8_t* payload,
         std::size_t length);
+    bool onOrderDelete(
+        const std::uint8_t* payload,
+        std::size_t length);
 
 private:
 

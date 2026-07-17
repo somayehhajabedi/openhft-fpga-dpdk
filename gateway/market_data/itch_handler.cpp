@@ -3,6 +3,8 @@
 #include "dpdk/parser/itch/mapper/add_order_mapper.hpp"
 #include "dpdk/parser/itch/messages/order_cancel_parser.hpp"
 #include "dpdk/parser/itch/mapper/order_cancel_mapper.hpp"
+#include "dpdk/parser/itch/messages/order_delete_parser.hpp"
+#include "dpdk/parser/itch/mapper/order_delete_mapper.hpp"
 
 
 ITCHHandler::ITCHHandler(
@@ -68,4 +70,21 @@ bool ITCHHandler::onOrderCancel(
     return orderBook_.reduceOrder(
         cancel.orderReferenceNumber,
         cancel.cancelledShares);
+}
+
+bool ITCHHandler::onOrderDelete(
+    const std::uint8_t* payload,
+    std::size_t length)
+{
+    const OrderDeleteWireMessage* wire =
+        OrderDeleteParser::parse(payload, length);
+
+    if (wire == nullptr)
+        return false;
+
+    const OrderDelete orderDelete =
+        OrderDeleteMapper::fromWire(wire);
+
+    return orderBook_.cancelOrder(
+        orderDelete.orderReferenceNumber);
 }

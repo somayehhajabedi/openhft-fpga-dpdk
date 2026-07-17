@@ -25,11 +25,13 @@ add_executable(parser_tests
     unit/mapper/add_order_mapper_test.cpp
     ../gateway/market_data/itch_handler.cpp
     ../orderbook/software/array_order_book.cpp
-    
+    unit/parser/order_delete_parser_test.cpp
+    unit/mapper/order_delete_mapper_test.cpp
 
 
     integration/parser_pipeline_test.cpp
     integration/itch_handler_cancel_test.cpp
+    integration/itch_handler_delete_test.cpp
 
     ../dpdk/parser/ethernet/ethernet.cpp
     ../dpdk/parser/ipv4/ipv4.cpp
@@ -41,6 +43,9 @@ add_executable(parser_tests
     ../dpdk/parser/itch/mapper/add_order_mapper.cpp
     ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_cancel_parser.cpp
     ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_cancel_mapper.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_delete_parser.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_delete_mapper.cpp
+
 )
 
 target_include_directories(parser_tests
