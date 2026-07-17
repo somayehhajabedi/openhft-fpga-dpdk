@@ -20,6 +20,9 @@ public:
     bool reduceOrder(
         OrderId id,
         Quantity cancelledQuantity);
+        bool executeOrder(
+        OrderId id,
+        Quantity executedQuantity);
 
     const PriceLevel* bestBid() const;
     const PriceLevel* bestAsk() const;

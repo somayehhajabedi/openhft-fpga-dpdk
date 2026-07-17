@@ -88,3 +88,21 @@ bool ITCHHandler::onOrderDelete(
     return orderBook_.cancelOrder(
         orderDelete.orderReferenceNumber);
 }
+
+bool ITCHHandler::onOrderExecuted(
+    const std::uint8_t* payload,
+    std::size_t length)
+{
+    const OrderExecutedWireMessage* wire =
+        OrderExecutedParser::parse(payload, length);
+
+    if (wire == nullptr)
+        return false;
+
+    const OrderExecuted execution =
+        OrderExecutedMapper::fromWire(wire);
+
+    return orderBook_.executeOrder(
+        execution.orderReferenceNumber,
+        execution.executedShares);
+}

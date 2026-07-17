@@ -1,6 +1,8 @@
 #pragma once
 
 #include "orderbook/software/array_order_book.hpp"
+#include "dpdk/parser/itch/messages/order_executed_parser.hpp"
+#include "dpdk/parser/itch/mapper/order_executed_mapper.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -20,6 +22,9 @@ public:
         const std::uint8_t* payload,
         std::size_t length);
     bool onOrderDelete(
+        const std::uint8_t* payload,
+        std::size_t length);
+    bool onOrderExecuted(
         const std::uint8_t* payload,
         std::size_t length);
 

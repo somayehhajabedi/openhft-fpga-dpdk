@@ -75,6 +75,13 @@ bool ArrayOrderBook::reduceOrder(
     return true;
 }
 
+bool ArrayOrderBook::executeOrder(
+    OrderId id,
+    Quantity executedQuantity)
+{
+    return reduceOrder(id, executedQuantity);
+}
+
 std::size_t ArrayOrderBook::priceToIndex(Price price) const
 {
     return static_cast<std::size_t>(price);

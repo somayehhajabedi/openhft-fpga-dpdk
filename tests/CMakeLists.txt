@@ -27,24 +27,31 @@ add_executable(parser_tests
     ../orderbook/software/array_order_book.cpp
     unit/parser/order_delete_parser_test.cpp
     unit/mapper/order_delete_mapper_test.cpp
+    unit/parser/order_executed_parser_test.cpp
+    unit/mapper/order_executed_mapper_test.cpp
+
+
 
 
     integration/parser_pipeline_test.cpp
     integration/itch_handler_cancel_test.cpp
     integration/itch_handler_delete_test.cpp
+    integration/itch_handler_execute_test.cpp
 
-    ../dpdk/parser/ethernet/ethernet.cpp
-    ../dpdk/parser/ipv4/ipv4.cpp
-    ../dpdk/parser/udp/udp.cpp
-    ../dpdk/parser/itch/itch.cpp
-    ../dpdk/parser/itch/messages/add_order.cpp
-    ../dpdk/parser/itch/mapper/add_order_mapper.cpp
-    ../dpdk/parser/itch/messages/add_order.cpp
-    ../dpdk/parser/itch/mapper/add_order_mapper.cpp
+    ${PROJECT_ROOT}/dpdk/parser/ethernet/ethernet.cpp
+    ${PROJECT_ROOT}/dpdk/parser/ipv4/ipv4.cpp
+    ${PROJECT_ROOT}/dpdk/parser/udp/udp.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/itch.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/messages/add_order.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/add_order_mapper.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/messages/add_order.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/add_order_mapper.cpp
     ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_cancel_parser.cpp
     ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_cancel_mapper.cpp
     ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_delete_parser.cpp
     ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_delete_mapper.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_executed_parser.cpp
+    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_executed_mapper.cpp
 
 )
 
