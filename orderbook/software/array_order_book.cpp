@@ -48,6 +48,33 @@ bool ArrayOrderBook::cancelOrder(OrderId id)
     return true;
 }
 
+bool ArrayOrderBook::reduceOrder(
+    OrderId id,
+    Quantity cancelledQuantity)
+{
+    auto it = order_index_.find(id);
+
+    if (it == order_index_.end())
+        return false;
+
+    Order* order = it->second;
+
+    if (cancelledQuantity == 0 ||
+        cancelledQuantity > order->quantity)
+    {
+        return false;
+    }
+
+    if (cancelledQuantity == order->quantity)
+    {
+        return cancelOrder(id);
+    }
+
+    order->quantity -= cancelledQuantity;
+
+    return true;
+}
+
 std::size_t ArrayOrderBook::priceToIndex(Price price) const
 {
     return static_cast<std::size_t>(price);

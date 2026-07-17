@@ -1,6 +1,7 @@
 #include "dpdk/parser/ethernet/ethernet.hpp"
 #include "dpdk/parser/ipv4/ipv4.hpp"
 #include "dpdk/parser/udp/udp.hpp"
+#include "dpdk/parser/itch/itch.hpp"
 
 #include <gtest/gtest.h>
 
@@ -13,9 +14,9 @@
 // and confirms that the original UDP payload is preserved.
 TEST(ParserPipelineTest, ParsesCompleteUdpPacket)
 {
-    constexpr std::string_view expected_payload{"Hello DPDK"};
+    constexpr std::string_view expected_payload{"AHello DPDK"};
 
-    constexpr std::array<std::uint8_t, 52> packet{
+    constexpr std::array<std::uint8_t, 53> packet{
         // Ethernet header: 14 bytes
         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, // Destination MAC
         0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, // Source MAC
@@ -24,7 +25,7 @@ TEST(ParserPipelineTest, ParsesCompleteUdpPacket)
         // IPv4 header: 20 bytes
         0x45,       // Version = 4, IHL = 5
         0x00,       // DSCP / ECN
-        0x00, 0x26, // Total length = 38 bytes
+        0x00, 0x27, // Total length = 38 bytes
         0x00, 0x01, // Identification
         0x00, 0x00, // Flags / Fragment offset
         0x40,       // TTL = 64
@@ -36,12 +37,12 @@ TEST(ParserPipelineTest, ParsesCompleteUdpPacket)
         // UDP header: 8 bytes
         0x30, 0x39, // Source port = 12345
         0x23, 0x28, // Destination port = 9000
-        0x00, 0x12, // UDP length = 18 bytes
+        0x00, 0x13, // UDP length = 19 bytes
         0x00, 0x00, // Checksum
 
-        // UDP payload: "Hello DPDK"
-        'H', 'e', 'l', 'l', 'o', ' ',
-        'D', 'P', 'D', 'K'
+        // UDP payload: "AHello DPDK"
+         'A', 'H', 'e', 'l', 'l', 'o', ' ',
+         'D', 'P', 'D', 'K'
     };
 
     const EthernetHeader* ethernet =
@@ -87,4 +88,13 @@ TEST(ParserPipelineTest, ParsesCompleteUdpPacket)
     };
 
     EXPECT_EQ(actual_payload, expected_payload);
+
+    const ITCHHeader* itch =
+    ITCHParser::parse(
+        UDPParser::payload(udp),
+        UDPParser::payloadLength(udp));
+
+ASSERT_NE(itch, nullptr);
+EXPECT_EQ(ITCHParser::messageType(itch), 'A');
+EXPECT_TRUE(ITCHParser::isAddOrder(itch));
 }
