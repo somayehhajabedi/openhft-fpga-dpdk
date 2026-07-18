@@ -31,6 +31,7 @@ add_executable(parser_tests
     unit/mapper/order_executed_mapper_test.cpp
     unit/parser/order_replace_parser_test.cpp
     unit/mapper/order_replace_mapper_test.cpp
+    unit/replay/itch_replay_reader_test.cpp
 
 
     integration/parser_pipeline_test.cpp
@@ -38,6 +39,7 @@ add_executable(parser_tests
     integration/itch_handler_delete_test.cpp
     integration/itch_handler_execute_test.cpp
     integration/itch_handler_replace_test.cpp
+    integration/itch_replay_pipeline_test.cpp
 
 
     ${PROJECT_ROOT}/dpdk/parser/ethernet/ethernet.cpp
@@ -56,6 +58,11 @@ add_executable(parser_tests
     ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_executed_mapper.cpp
     ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_replace_parser.cpp
     ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_replace_mapper.cpp
+    ${PROJECT_ROOT}/market_data/replay/itch_replay_reader.cpp
+    ${PROJECT_ROOT}/market_data/replay/itch_replay_dispatcher.cpp
+    ${PROJECT_ROOT}/market_data/replay/itch_replay_dispatcher.cpp
+    ${PROJECT_ROOT}/market_data/replay/itch_replay_reader.cpp
+    ${PROJECT_ROOT}/market_data/replay/itch_replay_dispatcher.cpp
 
 )
 
