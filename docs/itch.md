@@ -399,4 +399,51 @@ bool onOrderReplace(
 5. Verify that onOrderReplace() returns true
 6. Verify that the new order is the best bid
 7. Verify the new order ID, price, and quantity
+
+
+
 ```
+
+
+### Responsibilities
+
+#### ItchReplayReader
+
+- Opens a binary ITCH replay file.
+- Reads one length-prefixed ITCH message at a time.
+- Validates message length.
+- Detects truncated messages.
+- Returns raw message bytes.
+
+#### ItchReplayDispatcher
+
+Routes replay messages to the appropriate ITCH handler.
+
+Supported message types:
+
+| Type | Message |
+|------|----------|
+| A | Add Order |
+| X | Order Cancel |
+| D | Order Delete |
+| E | Order Executed |
+| U | Order Replace |
+
+Unknown message types are rejected.
+
+### Tests
+
+Replay functionality is validated by:
+
+- ItchReplayReaderTest
+- ItchReplayDispatcherTest
+- ItchReplayPipelineTest
+
+The pipeline test validates:
+
+Replay File
+→ Reader
+→ Dispatcher
+→ ITCHHandler
+→ OrderBook
+
