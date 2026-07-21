@@ -4,20 +4,22 @@
 
 #include <stdexcept>
 
+#include <array>
+
 PcapReplayReader::PcapReplayReader(
     const std::string& file_path)
 {
-    char error_buffer[PCAP_ERRBUF_SIZE]{};
+    std::array<char, PCAP_ERRBUF_SIZE> error_buffer{};
 
     handle_ = pcap_open_offline(
         file_path.c_str(),
-        error_buffer);
+        error_buffer.data());
 
     if (handle_ == nullptr)
     {
         throw std::runtime_error(
             std::string{"Failed to open capture file: "}
-            + error_buffer);
+            + error_buffer.data());
     }
 }
 
