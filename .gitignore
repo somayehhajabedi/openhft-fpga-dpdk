@@ -2,9 +2,39 @@ build/
 **/build/
 tests/build/
 Testing
+data/mac_dpdk_capture.pcapng
 
 CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
 compile_commands.json
+
+
+# Vivado generated files
+*.cache/
+*.hw/
+*.runs/
+*.sim/
+*.ip_user_files/
+.Xil/
+
+*.jou
+*.log
+*.pb
+*.wdf
+*.dcp
+*.rpt
+*.rpx
+*.vdi
+*.vds
+*.str
+*.xpe
+*.bit
+*.bin
+*.ltx
+
+# Vivado temporary files
+*.backup.*
+*.tmp
+*.webtalk
