@@ -29,7 +29,8 @@ jobs:
             cmake \
             ninja-build \
             libgtest-dev \
-            libbenchmark-dev
+            libbenchmark-dev \
+            libpcap-dev \
 
       - name: Configure Release build
         run: |
