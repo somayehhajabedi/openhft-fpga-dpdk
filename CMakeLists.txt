@@ -20,6 +20,7 @@ add_subdirectory(dpdk/parser/itch)
 add_subdirectory(market_data/replay)
 add_subdirectory(gateway)
 add_subdirectory(orderbook/software)
+add_subdirectory(risk)
 add_subdirectory(benchmarks)
 
 

@@ -13,8 +13,10 @@ void Gateway::submit(Order* order)
     if (!validate(order))
         return;
 
-    if (!risk_manager_.check(order))
+    if (risk_manager_.check(order) != RiskResult::Accepted)
+    {
         return;
+    }
 
     engine_.process(order);
 }
