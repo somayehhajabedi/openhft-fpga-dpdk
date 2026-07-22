@@ -23,8 +23,8 @@ add_executable(parser_tests
     unit/parser/itch_test.cpp
     unit/parser/add_order_test.cpp
     unit/mapper/add_order_mapper_test.cpp
-    ../gateway/market_data/itch_handler.cpp
-    ../orderbook/software/array_order_book.cpp
+
+
     unit/parser/order_delete_parser_test.cpp
     unit/mapper/order_delete_mapper_test.cpp
     unit/parser/order_executed_parser_test.cpp
@@ -33,7 +33,6 @@ add_executable(parser_tests
     unit/mapper/order_replace_mapper_test.cpp
     unit/replay/itch_replay_reader_test.cpp
 
-
     integration/parser_pipeline_test.cpp
     integration/itch_handler_cancel_test.cpp
     integration/itch_handler_delete_test.cpp
@@ -41,42 +40,26 @@ add_executable(parser_tests
     integration/itch_handler_replace_test.cpp
     integration/itch_replay_pipeline_test.cpp
 
-
-    ${PROJECT_ROOT}/dpdk/parser/ethernet/ethernet.cpp
-    ${PROJECT_ROOT}/dpdk/parser/ipv4/ipv4.cpp
-    ${PROJECT_ROOT}/dpdk/parser/udp/udp.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/itch.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/messages/add_order.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/add_order_mapper.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/messages/add_order.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/add_order_mapper.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_cancel_parser.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_cancel_mapper.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_delete_parser.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_delete_mapper.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_executed_parser.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_executed_mapper.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/messages/order_replace_parser.cpp
-    ${PROJECT_ROOT}/dpdk/parser/itch/mapper/order_replace_mapper.cpp
-    ${PROJECT_ROOT}/market_data/replay/itch_replay_reader.cpp
-    ${PROJECT_ROOT}/market_data/replay/itch_replay_dispatcher.cpp
-    ${PROJECT_ROOT}/market_data/replay/itch_replay_dispatcher.cpp
-    ${PROJECT_ROOT}/market_data/replay/itch_replay_reader.cpp
-    ${PROJECT_ROOT}/market_data/replay/itch_replay_dispatcher.cpp
-
+   
 )
 
-target_include_directories(parser_tests
+target_include_directories(
+    parser_tests
     PRIVATE
         ${PROJECT_ROOT}
 )
 
-target_include_directories(parser_tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/..
-)
-
-target_link_libraries(parser_tests PRIVATE
-    GTest::gtest_main
+target_link_libraries(
+    parser_tests
+    PRIVATE
+        GTest::gtest_main
+        ethernet_parser
+        ipv4_parser
+        udp_parser
+        itch_parser
+        replay
+        gateway
+        orderbook
 )
 
 include(GoogleTest)

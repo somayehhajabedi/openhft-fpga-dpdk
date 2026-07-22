@@ -1,5 +1,6 @@
 build/
 **/build/
+**/build-*/
 tests/build/
 Testing
 data/mac_dpdk_capture.pcapng
