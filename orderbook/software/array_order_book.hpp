@@ -14,7 +14,21 @@ public:
     static constexpr std::size_t MaxPriceLevels = 100000;
 
     void addOrder(Order* order);
+
     bool cancelOrder(OrderId id);
+
+    bool reduceOrder(
+        OrderId id,
+        Quantity cancelledQuantity);
+        bool executeOrder(
+        OrderId id,
+        Quantity executedQuantity);
+        
+    bool replaceOrder(
+        OrderId originalOrderId,
+        OrderId newOrderId,
+        Quantity newQuantity,
+        Price newPrice);    
 
     const PriceLevel* bestBid() const;
     const PriceLevel* bestAsk() const;

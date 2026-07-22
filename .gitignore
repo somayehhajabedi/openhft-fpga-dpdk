@@ -1,8 +1,8 @@
 build/
 **/build/
-find data -type f
-data/mac_dpdk_capture.pcapng
-
+**/build-*/
+tests/build/
+Testing
 
 CMakeCache.txt
 CMakeFiles/
@@ -16,16 +16,29 @@ data/
 *.pcapng
 
 # Vivado generated files
-fpga/fpga_bringup/
+*.cache/
+*.hw/
+*.runs/
+*.sim/
+*.ip_user_files/
+.Xil/
 
 *.jou
 *.log
-*.bit
-*.dcp
 *.pb
+*.wdf
+*.dcp
 *.rpt
 *.rpx
-*.wdf
-*.wpc
 *.vdi
 *.vds
+*.str
+*.xpe
+*.bit
+*.bin
+*.ltx
+
+# Vivado temporary files
+*.backup.*
+*.tmp
+*.webtalk
