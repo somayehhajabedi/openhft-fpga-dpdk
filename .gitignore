@@ -1,8 +1,31 @@
 build/
 **/build/
+find data -type f
+data/mac_dpdk_capture.pcapng
+
 
 CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
 compile_commands.json
+
+# Local captures
+data/
+*.pcap
+*.pcapng
+
+# Vivado generated files
+fpga/fpga_bringup/
+
+*.jou
+*.log
+*.bit
+*.dcp
+*.pb
+*.rpt
+*.rpx
+*.wdf
+*.wpc
+*.vdi
+*.vds
