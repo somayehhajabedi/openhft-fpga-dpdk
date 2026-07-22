@@ -4,6 +4,8 @@ build/
 tests/build/
 Testing
 data/mac_dpdk_capture.pcapng
+perf.data
+perf.data.old
 
 CMakeCache.txt
 CMakeFiles/

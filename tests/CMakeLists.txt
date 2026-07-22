@@ -32,6 +32,7 @@ add_executable(parser_tests
     unit/parser/order_replace_parser_test.cpp
     unit/mapper/order_replace_mapper_test.cpp
     unit/replay/itch_replay_reader_test.cpp
+    unit/risk/risk_manager_test.cpp
 
     integration/parser_pipeline_test.cpp
     integration/itch_handler_cancel_test.cpp
@@ -60,6 +61,7 @@ target_link_libraries(
         replay
         gateway
         orderbook
+        risk
 )
 
 include(GoogleTest)
