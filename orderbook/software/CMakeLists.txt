@@ -19,6 +19,7 @@ add_library(
 target_include_directories(
     orderbook
     PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}
 )
 
