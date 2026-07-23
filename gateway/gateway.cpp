@@ -26,7 +26,7 @@ bool Gateway::validate(const Order* order) const
     if (!order)
         return false;
 
-    if (order->quantity <= 0)
+    if (order->quantity == 0)
         return false;
 
     if (order->price <= 0)

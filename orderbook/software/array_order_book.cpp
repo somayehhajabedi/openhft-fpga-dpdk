@@ -93,7 +93,7 @@ bool ArrayOrderBook::replaceOrder(
         return false;
     }
 
-    if (order_index_.find(newOrderId) != order_index_.end())
+    if (order_index_.contains(newOrderId))
         return false;
 
     Order* order = it->second;
@@ -160,10 +160,12 @@ void ArrayOrderBook::refreshBestBid()
 {
     while (best_bid_ > 0)
     {
-        PriceLevel& level = bid_levels_[priceToIndex(best_bid_)];
+        const PriceLevel& level = bid_levels_[priceToIndex(best_bid_)];
 
         if (!level.empty())
+	{	
             return;
+	} 
 
         --best_bid_;
     }
@@ -175,10 +177,12 @@ void ArrayOrderBook::refreshBestAsk()
 {
     while (best_ask_ > 0 && best_ask_ < MaxPriceLevels)
     {
-        PriceLevel& level = ask_levels_[priceToIndex(best_ask_)];
+        const PriceLevel& level = ask_levels_[priceToIndex(best_ask_)];
 
         if (!level.empty())
+	{	
             return;
+	}    
 
         ++best_ask_;
     }

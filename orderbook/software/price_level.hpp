@@ -19,12 +19,12 @@ struct PriceLevel
     {
     }
 
-    bool empty() const
+    [[nodiscard]] bool empty() const
     {
         return head == nullptr;
     }
 
-    Order* front() const
+    [[nodiscard]] Order* front() const
     {
         return head;
     }
@@ -35,7 +35,7 @@ struct PriceLevel
         order->prev = tail;
         order->next = nullptr;
 
-        if (tail)
+        if (tail != nullptr)
             tail->next = order;
         else
             head = order;
@@ -48,7 +48,7 @@ struct PriceLevel
     {
         Order* order = head;
 
-        if (!order)
+        if (order == nullptr)
             return nullptr;
 
         remove(order);
@@ -60,12 +60,12 @@ struct PriceLevel
         if (!order)
             return;
 
-        if (order->prev)
+        if (order->prev != nullptr)
             order->prev->next = order->next;
         else
             head = order->next;
 
-        if (order->next)
+        if (order->next != nullptr)
             order->next->prev = order->prev;
         else
             tail = order->prev;
