@@ -253,7 +253,7 @@ bool Receiver::createMempool()
 
 bool Receiver::setupRxQueue(uint16_t port_id)
 {
-    constexpr uint16_t RX_RING_SIZE = 1024;
+    
 
     int ret = rte_eth_rx_queue_setup(
         port_id,

@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   build-test-benchmark:
+    name: Release Build, Tests and Benchmark
     runs-on: ubuntu-latest
 
     steps:
@@ -30,7 +31,7 @@ jobs:
             ninja-build \
             libgtest-dev \
             libbenchmark-dev \
-            libpcap-dev \
+            libpcap-dev
 
       - name: Configure Release build
         run: |
@@ -53,3 +54,179 @@ jobs:
           ./build/benchmarks/orderbook_benchmark \
             --benchmark_min_time=0.01s \
             --benchmark_repetitions=1
+
+  asan-ubsan:
+    name: ASan and UBSan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libgtest-dev \
+            libbenchmark-dev \
+            libpcap-dev
+
+      - name: Configure ASan and UBSan build
+        run: |
+          cmake -S . -B build-asan \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_ASAN=ON \
+            -DENABLE_UBSAN=ON
+
+      - name: Build
+        run: |
+          cmake --build build-asan --parallel
+
+      - name: Run tests
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: |
+          ctest \
+            --test-dir build-asan \
+            --output-on-failure
+
+  tsan:
+    name: ThreadSanitizer
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libgtest-dev \
+            libbenchmark-dev \
+            libpcap-dev
+
+      - name: Configure TSan build
+        run: |
+          cmake -S . -B build-tsan \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_TSAN=ON
+
+      - name: Build
+        run: |
+          cmake --build build-tsan --parallel
+
+      - name: Run tests
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+        run: |
+          ctest \
+            --test-dir build-tsan \
+            --output-on-failure
+
+  cppcheck:
+    name: cppcheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: |
+          cppcheck \
+            --enable=warning,style,performance,portability \
+            --std=c++20 \
+            --language=c++ \
+            --inline-suppr \
+            --suppress=missingIncludeSystem \
+            --suppress=functionStatic \
+            --error-exitcode=1 \
+            dpdk gateway market_data orderbook risk
+
+  clang-tidy:
+    name: clang-tidy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            clang-tidy \
+            libgtest-dev \
+            libbenchmark-dev \
+            libpcap-dev
+
+      - name: Generate compile commands
+        run: |
+          cmake -S . -B build-tidy \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Build
+        run: |
+          cmake --build build-tidy --parallel
+
+      - name: Run clang-tidy
+        run: |
+          clang-tidy \
+            orderbook/software/array_order_book.cpp \
+            -p build-tidy
+
+  coverage:
+    name: Coverage Build and Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libgtest-dev \
+            libbenchmark-dev \
+            libpcap-dev
+
+      - name: Configure coverage build
+        run: |
+          cmake -S . -B build-coverage \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_COVERAGE=ON
+
+      - name: Build
+        run: |
+          cmake --build build-coverage --parallel
+
+      - name: Run tests
+        run: |
+          ctest \
+            --test-dir build-coverage \
+            --output-on-failure

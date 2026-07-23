@@ -40,7 +40,6 @@ private:
     void refreshBestBid();
     void refreshBestAsk();
 
-private:
     std::array<PriceLevel, MaxPriceLevels> bid_levels_;
     std::array<PriceLevel, MaxPriceLevels> ask_levels_;
 
