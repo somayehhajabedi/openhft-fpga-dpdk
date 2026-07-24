@@ -14,16 +14,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
   
 
+
 add_subdirectory(dpdk/parser/ethernet)
 add_subdirectory(dpdk/parser/ipv4)
 add_subdirectory(dpdk/parser/udp)
 add_subdirectory(dpdk/parser/itch)
+
 add_subdirectory(market_data/replay)
-add_subdirectory(gateway)
+
 add_subdirectory(orderbook/software)
 add_subdirectory(risk)
-add_subdirectory(benchmarks)
+add_subdirectory(gateway)
+add_subdirectory(apps)
 
+add_subdirectory(benchmarks)
 
 option(OPENHFT_BUILD_TESTS "Build unit and integration tests" ON)
 

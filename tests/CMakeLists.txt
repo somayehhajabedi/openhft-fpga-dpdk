@@ -40,6 +40,7 @@ add_executable(parser_tests
     integration/itch_handler_execute_test.cpp
     integration/itch_handler_replace_test.cpp
     integration/itch_replay_pipeline_test.cpp
+    integration/gateway_test.cpp
 
    
 )
@@ -60,6 +61,7 @@ target_link_libraries(
         itch_parser
         replay
         gateway
+	matching_engine_core
         orderbook
         risk
 )

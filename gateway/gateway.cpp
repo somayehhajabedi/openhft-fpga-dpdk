@@ -1,3 +1,4 @@
+
 #include "gateway.hpp"
 
 Gateway::Gateway(MatchingEngine& engine,
@@ -7,30 +8,15 @@ Gateway::Gateway(MatchingEngine& engine,
 {
 }
 
-
-void Gateway::submit(Order* order)
+RiskResult Gateway::submit(Order* order)
 {
-    if (!validate(order))
-        return;
+    const RiskResult result = risk_manager_.check(order);
 
-    if (risk_manager_.check(order) != RiskResult::Accepted)
-    {
-        return;
-    }
+    if (result != RiskResult::Accepted)
+        return result;
 
+    risk_manager_.onAccepted(order);
     engine_.process(order);
-}
 
-bool Gateway::validate(const Order* order) const
-{
-    if (!order)
-        return false;
-
-    if (order->quantity == 0)
-        return false;
-
-    if (order->price <= 0)
-        return false;
-
-    return true;
+    return RiskResult::Accepted;
 }

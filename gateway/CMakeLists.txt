@@ -8,11 +8,13 @@ add_library(
 target_include_directories(
     gateway
     PUBLIC
-        ${CMAKE_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}
 )
 
 target_link_libraries(
     gateway
     PUBLIC
+        matching_engine_core
+        risk
         itch_parser
 )

@@ -1,11 +1,3 @@
-cmake_minimum_required(VERSION 3.20)
-
-project(MatchingEngine LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
 # ------------------------
 # OrderBook library
 # ------------------------
@@ -20,18 +12,17 @@ target_include_directories(
     orderbook
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}
 )
 
 # ------------------------
-# Matching Engine executable
+# Matching Engine library
 # ------------------------
 
-add_executable(
-    matching_engine
+add_library(
+    matching_engine_core
+    STATIC
         matching_engine.cpp
-        ../../gateway/gateway.cpp
-        ../../risk/risk_manager.cpp
         ../../market_data/trade_publisher.cpp
         ../../sequencer/sequencer.cpp
         ../../dispatcher/event_dispatcher.cpp
@@ -39,8 +30,15 @@ add_executable(
         ../../position/position_manager.cpp
 )
 
+target_include_directories(
+    matching_engine_core
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 target_link_libraries(
-    matching_engine
-    PRIVATE
+    matching_engine_core
+    PUBLIC
         orderbook
 )
