@@ -24,7 +24,6 @@ add_executable(parser_tests
     unit/parser/add_order_test.cpp
     unit/mapper/add_order_mapper_test.cpp
 
-
     unit/parser/order_delete_parser_test.cpp
     unit/mapper/order_delete_mapper_test.cpp
     unit/parser/order_executed_parser_test.cpp
@@ -41,8 +40,9 @@ add_executable(parser_tests
     integration/itch_handler_replace_test.cpp
     integration/itch_replay_pipeline_test.cpp
     integration/gateway_test.cpp
-
-   
+    integration/matching_engine_fifo_test.cpp
+    integration/matching_engine_multilevel_test.cpp
+    integration/matching_engine_resting_order_test.cpp
 )
 
 target_include_directories(
