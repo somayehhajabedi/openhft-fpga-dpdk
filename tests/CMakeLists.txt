@@ -43,6 +43,8 @@ add_executable(parser_tests
     integration/matching_engine_fifo_test.cpp
     integration/matching_engine_multilevel_test.cpp
     integration/matching_engine_resting_order_test.cpp
+    integration/matching_engine_partial_incoming_test.cpp
+    integration/matching_engine_partial_resting_test.cpp
 )
 
 target_include_directories(
