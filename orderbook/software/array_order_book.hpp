@@ -1,8 +1,8 @@
 #pragma once
 
+#include "common/types.hpp"
 #include "order.hpp"
 #include "price_level.hpp"
-#include "common/types.hpp"
 
 #include <array>
 #include <cstddef>
@@ -12,6 +12,10 @@ class ArrayOrderBook
 {
 public:
     static constexpr std::size_t MaxPriceLevels = 100000;
+    static constexpr std::size_t DefaultOrderCapacity = 4096;
+
+    explicit ArrayOrderBook(
+        std::size_t order_capacity = DefaultOrderCapacity);
 
     void addOrder(Order* order);
 
@@ -20,23 +24,27 @@ public:
     bool reduceOrder(
         OrderId id,
         Quantity cancelledQuantity);
-        bool executeOrder(
+
+    bool executeOrder(
         OrderId id,
         Quantity executedQuantity);
-        
+
     bool replaceOrder(
         OrderId originalOrderId,
         OrderId newOrderId,
         Quantity newQuantity,
-        Price newPrice);    
+        Price newPrice);
 
     const PriceLevel* bestBid() const;
     const PriceLevel* bestAsk() const;
 
-
 private:
     std::size_t priceToIndex(Price price) const;
-    PriceLevel& getLevel(Side side, Price price);
+
+    PriceLevel& getLevel(
+        Side side,
+        Price price);
+
     void refreshBestBid();
     void refreshBestAsk();
 

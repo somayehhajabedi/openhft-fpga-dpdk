@@ -32,6 +32,7 @@ add_executable(parser_tests
     unit/mapper/order_replace_mapper_test.cpp
     unit/replay/itch_replay_reader_test.cpp
     unit/risk/risk_manager_test.cpp
+    unit/common/fixed_hash_map_test.cpp
 
     integration/parser_pipeline_test.cpp
     integration/itch_handler_cancel_test.cpp

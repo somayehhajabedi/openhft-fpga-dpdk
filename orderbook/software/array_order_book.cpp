@@ -1,5 +1,11 @@
 #include "array_order_book.hpp"
 
+ArrayOrderBook::ArrayOrderBook(std::size_t order_capacity)
+{
+    order_index_.max_load_factor(0.7f);
+    order_index_.reserve(order_capacity);
+}
+
 void ArrayOrderBook::addOrder(Order* order)
 {
     PriceLevel& level = getLevel(order->side, order->price);
@@ -8,19 +14,21 @@ void ArrayOrderBook::addOrder(Order* order)
         level.price = order->price;
 
     level.push_back(order);
+
     if (order->side == Side::Buy)
     {
         if (best_bid_ == 0 || order->price > best_bid_)
-           best_bid_ = order->price;
+            best_bid_ = order->price;
     }
     else
     {
-       if (best_ask_ == 0 || order->price < best_ask_)
-          best_ask_ = order->price;
+        if (best_ask_ == 0 || order->price < best_ask_)
+            best_ask_ = order->price;
     }
 
     order_index_[order->id] = order;
 }
+
 
 bool ArrayOrderBook::cancelOrder(OrderId id)
 {

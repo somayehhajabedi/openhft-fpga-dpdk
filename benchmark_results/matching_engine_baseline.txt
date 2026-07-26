@@ -1,0 +1,7 @@
+-----------------------------------------------------------------------------------------
+Benchmark                               Time             CPU   Iterations UserCounters...
+-----------------------------------------------------------------------------------------
+BM_MatchingEngineInsert_mean        62967 ns        62827 ns            5 items_per_second=16.3175M/s
+BM_MatchingEngineInsert_median      61490 ns        61307 ns            5 items_per_second=16.7029M/s
+BM_MatchingEngineInsert_stddev       2445 ns         2399 ns            5 items_per_second=611.913k/s
+BM_MatchingEngineInsert_cv           3.88 %          3.82 %             5 items_per_second=3.75%
