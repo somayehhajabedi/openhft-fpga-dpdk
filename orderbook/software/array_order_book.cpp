@@ -1,9 +1,8 @@
 #include "array_order_book.hpp"
 
-ArrayOrderBook::ArrayOrderBook(std::size_t order_capacity)
+ArrayOrderBook::ArrayOrderBook(
+    std::size_t /*order_capacity*/)
 {
-    order_index_.max_load_factor(0.7f);
-    order_index_.reserve(order_capacity);
 }
 
 void ArrayOrderBook::addOrder(Order* order)
@@ -26,18 +25,18 @@ void ArrayOrderBook::addOrder(Order* order)
             best_ask_ = order->price;
     }
 
-    order_index_[order->id] = order;
+    order_index_.insert(order->id, order);
 }
 
 
 bool ArrayOrderBook::cancelOrder(OrderId id)
 {
-    auto it = order_index_.find(id);
+    Order** found = order_index_.find(id);
 
-    if (it == order_index_.end())
+    if (found == nullptr)
         return false;
 
-    Order* order = it->second;
+    Order* order = *found;
     PriceLevel* level = order->level;
 
     level->remove(order);
@@ -51,7 +50,7 @@ bool ArrayOrderBook::cancelOrder(OrderId id)
         refreshBestAsk();
 }
 
-    order_index_.erase(it);
+    order_index_.erase(id);
 
     return true;
 }
@@ -60,12 +59,12 @@ bool ArrayOrderBook::reduceOrder(
     OrderId id,
     Quantity cancelledQuantity)
 {
-    auto it = order_index_.find(id);
+    Order** found = order_index_.find(id);
 
-    if (it == order_index_.end())
+    if (found == nullptr)
         return false;
 
-    Order* order = it->second;
+    Order* order = *found;
 
     if (cancelledQuantity == 0 ||
         cancelledQuantity > order->quantity)
@@ -89,9 +88,9 @@ bool ArrayOrderBook::replaceOrder(
     Quantity newQuantity,
     Price newPrice)
 {
-    auto it = order_index_.find(originalOrderId);
+    Order** found = order_index_.find(originalOrderId);
 
-    if (it == order_index_.end())
+    if (found == nullptr)
         return false;
 
     if (newOrderId == 0 ||
@@ -104,7 +103,7 @@ bool ArrayOrderBook::replaceOrder(
     if (order_index_.contains(newOrderId))
         return false;
 
-    Order* order = it->second;
+    Order* order = *found;
 
     const Side side = order->side;
     const AccountId accountId = order->account_id;

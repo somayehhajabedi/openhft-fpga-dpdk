@@ -1,12 +1,13 @@
 #pragma once
 
 #include "common/types.hpp"
+#include "common/fixed_hash_map.hpp"
 #include "order.hpp"
 #include "price_level.hpp"
 
 #include <array>
 #include <cstddef>
-#include <unordered_map>
+
 
 class ArrayOrderBook
 {
@@ -54,5 +55,8 @@ private:
     Price best_bid_ = 0;
     Price best_ask_ = 0;
 
-    std::unordered_map<OrderId, Order*> order_index_;
+    FixedHashMap<
+    OrderId,
+    Order*,
+    DefaultOrderCapacity> order_index_;
 };

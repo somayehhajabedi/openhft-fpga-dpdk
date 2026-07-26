@@ -915,5 +915,238 @@ The next phase will determine whether the strong standalone FixedHashMap results
 
 //////////////////////////////////////////////////////////////////////////////////
 
+# P05 – Integrate FixedHashMap into ArrayOrderBook
+
+## Objective
+
+Replace the allocation-heavy `std::unordered_map` used by `ArrayOrderBook`
+with the custom allocation-free `FixedHashMap` implemented during P04,
+then validate correctness, benchmark performance, and profile the
+matching engine.
+
+---
+
+## Background
+
+P04 demonstrated that `FixedHashMap` significantly outperformed
+`std::unordered_map` in isolated microbenchmarks while completely
+eliminating per-node heap allocations.
+
+The next step was integrating the container into the production
+matching engine to evaluate its impact on real application performance.
+
+---
+
+## Code Changes
+
+The order lookup container inside `ArrayOrderBook` was replaced.
+
+Previous implementation:
+
+```cpp
+std::unordered_map<OrderId, Order*> order_index_;
+```
+
+New implementation:
+
+```cpp
+FixedHashMap<
+    OrderId,
+    Order*,
+    DefaultOrderCapacity> order_index_;
+```
+
+The order book implementation was updated to use the
+`FixedHashMap` interface.
+
+Major API changes included:
+
+- replacing `operator[]` with `insert()`;
+- replacing iterator-based lookup with pointer-based lookup;
+- replacing iterator erase with key erase;
+- removing `reserve()` and `max_load_factor()` since the hash map
+  has fixed compile-time capacity.
+
+---
+
+## Files Modified
+
+```
+common/fixed_hash_map.hpp
+orderbook/software/array_order_book.hpp
+orderbook/software/array_order_book.cpp
+tests/
+benchmarks/
+```
+
+---
+
+## Commands Executed
+
+Build
+
+```bash
+cmake --build build -j$(nproc)
+```
+
+Validation
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+Release Benchmark
+
+```bash
+./build-release/benchmarks/matching_engine_benchmark \
+    --benchmark_repetitions=10 \
+    --benchmark_report_aggregates_only=true \
+    --benchmark_out=benchmark_results/p05_matching_engine_fixed_hash_map_release.json \
+    --benchmark_out_format=json
+```
+
+Profiling
+
+```bash
+perf record -e cycles:u \
+    ./build-release/benchmarks/matching_engine_benchmark
+```
+
+---
+
+## Validation
+
+All regression tests passed.
+
+```
+76 / 76 tests passed
+0 failures
+```
+
+The FixedHashMap integration preserved the existing behaviour of the
+matching engine and order book.
+
+---
+
+## Benchmark
+
+Release benchmark results:
+
+| Metric | Value |
+|---------|------:|
+| Mean throughput | **15.62 M orders/sec** |
+| Median throughput | **15.51 M orders/sec** |
+| Coefficient of variation | **11.02%** |
+
+A subsequent profiling run reported approximately:
+
+```
+18.15 M orders/sec
+```
+
+However, due to CPU frequency scaling and benchmark variability,
+the release benchmark above is treated as the official measurement.
+
+---
+
+## Profiling
+
+User-space profiling was performed using:
+
+```bash
+perf record -e cycles:u
+```
+
+Major samples:
+
+```
+67.38%  __memset_avx2_unaligned_erms
+10.93%  ArrayOrderBook::addOrder()
+```
+
+Notably,
+
+```
+FixedHashMap::insert()
+FixedHashMap::find()
+```
+
+did **not** appear among the dominant hotspots.
+
+---
+
+## Analysis
+
+The integration successfully removed `std::unordered_map`
+from the order lookup path.
+
+Although isolated microbenchmarks showed large improvements,
+the end-to-end matching engine benchmark did not demonstrate
+a measurable throughput improvement.
+
+Profiling initially suggested that most CPU time was spent
+inside `memset`.
+
+Further investigation revealed that this observation resulted
+from profiling the complete benchmark execution.
+
+Google Benchmark excludes benchmark setup from its timing by
+calling `PauseTiming()` and `ResumeTiming()`, but `perf`
+samples the entire process, including object construction,
+memory initialization, and benchmark setup.
+
+Therefore the large `memset` hotspot does **not** necessarily
+represent the hot path executed while processing orders.
+
+The profiling session nevertheless confirmed an important result:
+
+The custom hash map is no longer a dominant runtime cost.
+
+---
+
+## Results
+
+✓ Successfully replaced `std::unordered_map` inside the order book.
+
+✓ Eliminated dynamic hash table growth from the hot lookup path.
+
+✓ Passed all correctness tests.
+
+✓ Successfully integrated the custom container into the production
+matching engine.
+
+✓ Established a reproducible benchmarking and profiling workflow.
+
+---
+
+## Conclusion
+
+P05 completed the transition from a standard library hash table
+to a custom fixed-capacity hash map suitable for low-latency
+applications.
+
+The integration was successful and maintained correctness.
+
+Performance measurements indicate that the primary bottleneck is
+no longer order lookup.
+
+Future optimization efforts should focus on profiling workloads
+that isolate the true matching-engine hot path while excluding
+benchmark setup overhead.
+
+---
+
+## Next Step
+
+P06
+
+Develop a dedicated profiling benchmark that:
+
+- constructs the matching engine only once;
+- prepares benchmark data outside the measured region;
+- profiles only the steady-state order processing path;
+- identifies the next true runtime bottleneck before additional
+optimizations are implemented.
+
 
 

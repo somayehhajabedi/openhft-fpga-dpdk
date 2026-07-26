@@ -9,6 +9,8 @@ CMakeFiles/
 Makefile
 cmake_install.cmake
 compile_commands.json
+perf.data
+perf.data.old
 
 # Local captures
 data/
