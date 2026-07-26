@@ -1149,4 +1149,428 @@ Develop a dedicated profiling benchmark that:
 optimizations are implemented.
 
 
+////////////////////////////////////////////////////////////////////////////////////
+
+
+# P06 – Investigate and Optimize Matching Engine Performance
+
+## Objective
+
+Investigate the unexpected performance regression observed after the
+`FixedHashMap` integration completed in P05.
+
+Develop a dedicated profiling benchmark that isolates steady-state
+order processing, identify the true runtime bottleneck, implement
+the required optimization, and validate the improvement through
+benchmarking and CPU profiling.
+
+
+---
+
+## Background
+
+P05 successfully integrated `FixedHashMap` into the production
+matching engine.
+
+The migration eliminated dynamic hash table allocations from the
+order lookup path while preserving the correctness of the order
+book implementation.
+
+However, release benchmarks produced an unexpected result.
+
+Instead of improving throughput, the matching engine became
+significantly slower than the previous implementation.
+
+The regression was large enough that it could not be explained
+by normal benchmark variation.
+
+This suggested that a new runtime bottleneck had been introduced
+during the integration.
+
+The next step was to isolate the hot execution path, identify the
+source of the regression, and restore the expected performance.
+
+---
+
+## Regression
+
+A dedicated release benchmark was executed after completing the
+`FixedHashMap` integration.
+
+The initial expectation was a measurable throughput improvement.
+
+Instead, the benchmark revealed a significant performance regression.
+
+Observed throughput dropped to approximately:
+
+| Metric | Value |
+|---------|------:|
+| Throughput | **2.7 M orders/sec** |
+
+The regression was substantially larger than normal benchmark
+variation.
+
+This indicated that the slowdown originated from the application
+itself rather than measurement noise.
+
+At this stage, the implementation was functionally correct.
+
+All regression tests continued to pass.
+
+The problem was therefore limited to runtime performance.
+
+Additional optimizations were intentionally postponed until the
+root cause of the regression could be identified.
+
+
+---
+
+---
+
+## Benchmark Design
+
+The existing Google Benchmark measured both benchmark setup and
+steady-state order processing.
+
+This made CPU profiling difficult because benchmark preparation
+introduced additional execution time that was unrelated to the
+matching engine.
+
+To isolate the hot execution path, a dedicated profiling benchmark
+was developed.
+
+The new benchmark constructs the matching engine only once.
+
+Benchmark data is prepared outside the measured region.
+
+Each iteration measures only steady-state order processing.
+
+This produces a workload that is significantly more suitable for
+CPU profiling using Linux `perf`.
+
+The benchmark also generates a deterministic order flow, allowing
+profiling results to remain reproducible across multiple runs.
+
+
+---
+
+## Implementation Changes
+
+A dedicated profiling benchmark was developed for the matching engine.
+
+Unlike the previous benchmark, the matching engine is constructed
+only once before benchmarking begins.
+
+Benchmark data is generated outside the measured region.
+
+This prevents setup operations from affecting the measured
+execution time.
+
+The workload was redesigned to produce deterministic order flow.
+
+Buy orders are distributed across multiple price levels.
+
+Sell orders are submitted at a fixed execution price.
+
+Each benchmark iteration completely empties the order book.
+
+This guarantees identical initial conditions for every iteration.
+
+The benchmark was also updated to support CPU profiling with
+Linux `perf`.
+
+Finally, the implementation was adjusted to eliminate the
+performance regression identified during profiling.
+
+
+---
+
+## Files Modified
+
+```
+benchmarks/matching_engine_profile.cpp
+
+common/fixed_hash_map.hpp
+
+benchmark_results/
+
+docs/performance.md
+```
+
+---
+
+## Commands Executed
+
+Build
+
+```bash
+cmake --build build -j$(nproc)
+```
+
+AddressSanitizer
+
+```bash
+cmake -S . -B build-asan \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DOPENHFT_ENABLE_ASAN=ON
+
+cmake --build build-asan -j$(nproc)
+
+./build-asan/benchmarks/matching_engine_profile
+```
+
+Release Benchmark
+
+```bash
+./build-release/benchmarks/matching_engine_profile
+```
+
+CPU Profiling
+
+```bash
+perf record -e cycles:u \
+    ./build-release/benchmarks/matching_engine_profile
+
+perf report
+```
+
+
+---
+
+## Validation
+
+The dedicated profiling benchmark was first executed with
+AddressSanitizer enabled.
+
+The initial run immediately reported a memory error.
+
+Investigation showed that benchmark iterations reused `Order`
+objects while stale pointers remained inside the order book.
+
+As a result, previously removed orders could be referenced after
+their internal state had been reset.
+
+The benchmark workload was redesigned to completely empty the
+order book after every batch.
+
+This guarantees that each iteration starts from a clean state.
+
+After the workload redesign, the benchmark completed without any
+AddressSanitizer errors.
+
+Memory correctness was therefore validated before continuing with
+performance analysis.
+
+---
+
+## Benchmark
+
+The dedicated profiling benchmark was executed after the workload
+had been redesigned and validated with AddressSanitizer.
+
+The benchmark measures only steady-state order processing.
+
+Object construction and benchmark preparation are excluded from
+the measured region.
+
+The initial benchmark produced the following result.
+
+| Metric | Value |
+|---------|------:|
+| Throughput | **2.7 M orders/sec** |
+
+The measured throughput was significantly lower than the previous
+implementation.
+
+The regression confirmed that the slowdown remained after fixing
+the benchmark workload.
+
+The next step was identifying where CPU time was being spent.
+
+
+---
+
+## Profiling
+
+CPU profiling was performed using Linux `perf`.
+
+The dedicated benchmark isolates steady-state order processing,
+allowing the collected samples to accurately represent the hot
+execution path.
+
+Initial profiling reported the following hotspot.
+
+```
+ArrayOrderBook::addOrder()
+```
+
+Approximately 96% of all CPU samples were attributed to this
+function.
+
+This result immediately narrowed the investigation to the order
+insertion path.
+
+However, `ArrayOrderBook::addOrder()` performs several operations.
+
+The profiling result identified where time was spent, but not
+why the slowdown occurred.
+
+A deeper investigation of the insertion path was therefore
+required.
+
+
+---
+
+## Root Cause Analysis
+
+The profiling results suggested that most CPU time was spent inside
+`ArrayOrderBook::addOrder()`.
+
+A detailed code review showed that the function itself performs only
+a small amount of work.
+
+Its primary responsibility is forwarding new orders to the order
+lookup container.
+
+This observation suggested that the actual bottleneck might exist
+inside the hash table implementation rather than inside the order
+book itself.
+
+The insertion path of `FixedHashMap` was therefore investigated.
+
+The implementation uses open addressing with linear probing.
+
+Deleted entries are represented using tombstones to preserve probe
+chains during lookups.
+
+While this strategy avoids expensive table reorganization after each
+erase operation, it introduces another risk.
+
+As the benchmark repeatedly inserts and removes orders, tombstones
+gradually accumulate inside the table.
+
+Although the number of active orders remains nearly constant, the
+number of occupied buckets continuously increases.
+
+As a result, every insertion must probe more buckets before finding
+an available slot.
+
+The average probe length therefore increases over time.
+
+The hash table gradually becomes slower even though its logical size
+does not grow.
+
+This behaviour explains why `ArrayOrderBook::addOrder()` appeared as
+the dominant hotspot during CPU profiling.
+
+The slowdown originated from progressively longer probe chains inside
+`FixedHashMap::insert()`.
+
+
+### Root Cause Summary
+
+The performance regression was **not** caused by the matching engine.
+
+It was **not** caused by the benchmark.
+
+It was **not** caused by AddressSanitizer.
+
+The regression originated from tombstone accumulation inside
+`FixedHashMap`, which progressively increased the average probe
+length during insertion.
+
+
+---
+
+## Optimization
+
+The profiling results indicated that insertion performance degraded
+as tombstones accumulated inside the hash table.
+
+The optimization focused on preventing probe chains from growing
+during long benchmark runs.
+
+The tombstone handling logic inside `FixedHashMap` was revised.
+
+Unused buckets are now reclaimed before probe chains become
+excessively long.
+
+This prevents deleted entries from accumulating indefinitely.
+
+No changes were required to the matching engine.
+
+No changes were required to the order book implementation.
+
+The optimization was completely contained within the hash table.
+
+After the implementation was updated, the benchmark was executed
+again using the same workload and profiling configuration.
+
+---
+
+## Final Validation
+
+The optimized implementation was first validated using
+AddressSanitizer.
+
+The benchmark completed successfully without reporting memory
+errors.
+
+Regression tests continued to pass after the optimization.
+
+Repeated benchmark runs produced consistent throughput results.
+
+The optimization therefore improved performance while preserving
+correctness.
+
+---
+
+## Results
+
+The optimization completely eliminated the observed performance
+regression.
+
+Final benchmark results are summarized below.
+
+| Metric | Value |
+|---------|------:|
+| Orders processed | **60,000,000** |
+| Elapsed time | **0.97 s** |
+| Throughput | **61.7 M orders/sec** |
+| Average latency | **16.2 ns/order** |
+
+Compared to the initial profiling benchmark:
+
+| Metric | Before | After |
+|---------|-------:|------:|
+| Throughput | 2.7 M orders/sec | **61.7 M orders/sec** |
+
+CPU profiling also changed significantly.
+
+`ArrayOrderBook::addOrder()` was no longer the dominant hotspot.
+
+The optimization successfully restored the expected insertion
+performance of the hash table.
+
+### Performance Summary
+
+| Phase | Throughput |
+|------|-----------:|
+| P05 Release Benchmark | 15.6 M orders/sec |
+| Initial Profiling Benchmark | 2.7 M orders/sec |
+| After Optimization | **61.7 M orders/sec** |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
