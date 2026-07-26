@@ -107,7 +107,6 @@ public:
 
         return nullptr;
     }
-
     bool erase(const Key& key)
     {
         std::size_t index = hash(key);
@@ -124,6 +123,10 @@ public:
             {
                 entry.state = EntryState::Deleted;
                 --size_;
+
+                if (size_ == 0)
+                    clearDeletedEntries();
+
                 return true;
             }
 
@@ -132,7 +135,7 @@ public:
 
         return false;
     }
-
+    
     bool contains(const Key& key) const
     {
         return find(key) != nullptr;
@@ -176,6 +179,14 @@ private:
     static constexpr std::size_t nextIndex(std::size_t index)
     {
         return (index + 1) % Capacity;
+    }
+    void clearDeletedEntries()
+    {
+        for (Entry& entry : entries_)
+        {
+            if (entry.state == EntryState::Deleted)
+                entry.state = EntryState::Empty;
+        }
     }
 
     std::array<Entry, Capacity> entries_{};

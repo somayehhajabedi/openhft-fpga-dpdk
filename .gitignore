@@ -4,6 +4,12 @@ build/
 tests/build/
 Testing
 
+
+# Linux perf output
+perf*.data
+perf*.data.old
+
+
 CMakeCache.txt
 CMakeFiles/
 Makefile
