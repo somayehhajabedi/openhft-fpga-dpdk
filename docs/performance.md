@@ -1561,6 +1561,730 @@ performance of the hash table.
 | After Optimization | **61.7 M orders/sec** |
 
 
+## Lessons Learned
+
+This investigation reinforced several important engineering
+principles.
+
+Performance optimizations should always be validated with
+measurements.
+
+Microbenchmark improvements do not necessarily translate into
+application-level performance gains.
+
+Profiling should isolate the steady-state execution path whenever
+possible.
+
+Correctness must be verified before interpreting performance
+results.
+
+Small implementation details, such as tombstone accumulation,
+can have a significant impact on long-running workloads.
+
+Finally, evidence should always drive optimization decisions.
+Assumptions alone are insufficient.
+
+---
+
+## Conclusion
+
+This investigation identified the root cause of the unexpected
+performance regression observed after integrating `FixedHashMap`.
+
+Profiling showed that insertion performance gradually degraded as
+tombstones accumulated during long-running workloads.
+
+The tombstone handling logic was optimized to prevent excessive
+probe chain growth.
+
+After the optimization, throughput increased from approximately
+2.7 million orders per second to over 61 million orders per
+second.
+
+The optimized implementation was validated using AddressSanitizer,
+unit tests, and repeated benchmark runs.
+
+The matching engine now achieves stable and predictable
+performance under sustained workloads.
+
+---
+
+## Next Step
+
+The next phase will focus on profiling and optimizing the complete
+market data processing pipeline.
+
+This includes measuring end-to-end latency from packet reception
+to order book updates and identifying additional optimization
+opportunities across the parsing and processing stages.
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+# P07 – P07 – End-to-End ITCH Processing Pipeline Benchmark
+
+
+## Objective
+
+Evaluate the performance of the complete software market data
+processing pipeline.
+
+Measure end-to-end latency and throughput from ITCH message
+processing to order book updates.
+
+Establish a reproducible performance baseline for future
+optimizations.
+
+Validate the correctness of the integrated pipeline before
+extending the system with additional components.
+
+
+## Background
+
+Previous phases focused on individual components of the market
+data pipeline.
+
+Ethernet, IPv4, UDP, ITCH parsing, and the matching engine were
+implemented and validated independently.
+
+P06 investigated and optimized the performance of the matching
+engine.
+
+The next step is to evaluate the complete software pipeline as a
+single integrated system.
+
+This phase establishes a baseline before introducing networking
+overhead through DPDK.
+## Success Criteria
+
+- The complete pipeline processes market data correctly.
+
+- End-to-end latency is measured.
+
+- Throughput is measured.
+
+- The benchmark is deterministic and reproducible.
+
+- Performance results are documented.
+
+- Profiling identifies the next optimization target.
+
+## Design
+
+The benchmark executes the complete software processing path.
+
+ITCH messages are replayed from a deterministic data source.
+
+Each message is decoded, translated into an internal event,
+processed by the matching engine, and applied to the order book.
+
+Latency and throughput are measured for the entire processing
+pipeline.
+
+The benchmark excludes DPDK and packet parsing in order to
+measure the application processing cost independently from
+networking overhead.
+
+
+## Design Decision
+
+The benchmark intentionally includes replay file reading.
+
+Although file I/O introduces additional overhead, the benchmark aims to measure the complete software replay pipeline rather than isolated processing stages.
+
+Future benchmark phases will separate file I/O from in-memory processing to evaluate the impact of storage independently.
+
+## Processing Pipeline
+
+P07 evaluates the complete software processing path used by the
+current implementation.
+
+The measured pipeline is shown below.
+
+ITCH Replay Reader
+    ↓
+ItchReplayDispatcher
+    ↓
+ITCHHandler
+    ↓
+ITCH Parser
+    ↓
+ITCH Mapper
+    ↓
+ArrayOrderBook
+
+The replay reader provides deterministic ITCH messages.
+
+`ItchReplayDispatcher` routes each message according to its ITCH
+message type.
+
+`ITCHHandler` coordinates the processing of each message.
+
+The corresponding parser converts the binary payload into a wire
+message structure.
+
+The mapper transforms the parsed message into the internal data
+model.
+
+Finally, the translated message is applied to the order book.
+
+The benchmark measures the performance of this complete software
+processing path.
+
+
+
+
+
+Replayed ITCH messages are forwarded to
+`ItchReplayDispatcher::dispatch()`.
+
+The dispatcher reads the message type from the first byte of the
+ITCH message.
+
+It then routes the message to the corresponding method on
+`ITCHHandler`.
+
+The dispatcher stores a non-owning reference to `ITCHHandler`.
+
+No order book or matching logic is implemented inside the
+dispatcher.
+
+
+ItchReplayReader
+        │
+        ▼
+ItchReplayDispatcher::dispatch()
+        │
+        ├── 'A' → ITCHHandler::onAddOrder()
+        ├── 'X' → ITCHHandler::onOrderCancel()
+        ├── 'D' → ITCHHandler::onOrderDelete()
+        ├── 'E' → ITCHHandler::onOrderExecuted()
+        └── 'U' → ITCHHandler::onOrderReplace()
+
+
+
+
+ITCH Processing Pipeline
+
+                    ITCH Replay Reader
+                            │
+                            ▼
+                  ItchReplayDispatcher
+                            │
+                            ▼
+                      ITCHHandler
+                            │
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+  ITCH Parser         ITCH Mapper        Order Lifecycle
+                            │
+                            ▼
+                    ArrayOrderBook
+
+
+
+
+
+## Dispatcher Integration
+
+The benchmark uses `ItchReplayDispatcher::dispatch()` as the entry point into the message-processing path.
+
+The dispatcher validates the message pointer and length.
+
+It reads the ITCH message type from the first byte.
+
+Supported message types are routed as follows:
+
+| Message Type | Handler Method |
+|---|---|
+| `A` | `ITCHHandler::onAddOrder()` |
+| `X` | `ITCHHandler::onOrderCancel()` |
+| `D` | `ITCHHandler::onOrderDelete()` |
+| `E` | `ITCHHandler::onOrderExecuted()` |
+| `U` | `ITCHHandler::onOrderReplace()` |
+
+Unsupported message types are rejected.
+
+The benchmark will call the dispatcher rather than invoking handler methods directly.
+
+This preserves the production processing path and includes dispatch overhead in the end-to-end measurement.
+
+## Commands Executed
+
+```bash
+cat market_data/replay/itch_replay_dispatcher.hpp
+cat market_data/replay/itch_replay_dispatcher.cpp
+
+
+
+For each iteration : 
+
+Create OrderBook
+        │
+Create Handler
+        │
+Create Dispatcher
+        │
+Open Replay File
+        │
+Create Message Buffer
+        │
+Start Timer (Google Benchmark)
+        │
+Read
+Dispatch
+Read
+Dispatch
+...
+Until EOF
+        │
+End Iteration
+
+
+## Replay Dataset Discovery
+
+No valid ITCH replay dataset was found in the repository.
+
+The discovered `.bin` files were CMake compiler-detection artifacts.
+
+They do not contain market data and cannot be used by the pipeline benchmark.
+
+A benchmark-specific replay fixture will therefore be created.
+
+The fixture will use the binary format expected by `ItchReplayReader`.
+
+Each record contains a two-byte network-order message length followed by the ITCH message payload.
+
+Existing parser and integration tests will be inspected before generating the dataset.
+
+This avoids duplicating or guessing the ITCH wire format.
+
+## Commands Executed
+
+```bash
+find . -iname "*.bin" -o -iname "*.itch" -o -iname "*.dat" -o -iname "*.pcap"
+
+
+Commands: 
+
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target pipeline_benchmark -j$(nproc)
+
+
+./build/benchmarks/pipeline_benchmark
+
+
+
+## Initial Benchmark Result
+
+The end-to-end replay benchmark built and executed successfully.
+
+The benchmark processed **5,000 ITCH messages** per iteration.
+
+The benchmark was executed **five times** with the CPU scaling governor configured to **performance**.
+
+The measured mean execution time was **21.76 milliseconds** per iteration.
+
+The measured median execution time was **21.64 milliseconds** per iteration.
+
+The reported mean throughput was approximately **229,937 messages per second**.
+
+The reported median throughput was approximately **231,168 messages per second**.
+
+The coefficient of variation (CV) was approximately **2.08%**, indicating that the benchmark results were reasonably stable across repeated executions.
+
+The measured execution time corresponds to an average processing cost of approximately **4.35 microseconds per message**.
+
+The measurement includes replay file reading, message dispatch, ITCH parsing, message mapping, handler execution, order book updates, and per-iteration object construction.
+
+The result therefore represents an **end-to-end replay pipeline baseline** rather than a pure message-processing latency measurement.
+
+Google Benchmark still reported that the benchmark library was built in **Debug** mode, which may introduce additional measurement overhead.
+
+A setup-only baseline will be added in the next stage to estimate the cost of per-iteration object construction separately from replay processing.
+
+## Commands Executed
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target pipeline_benchmark -j$(nproc)
+
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+
+./build/benchmarks/pipeline_benchmark \
+    --benchmark_repetitions=5 \
+    --benchmark_report_aggregates_only=true
+
+
+Benchmark: pipelineReplay
+
+Mean Time:        21,757,878 ns
+Median Time:      21,637,759 ns
+
+Mean Throughput:  229.937k messages/s
+Median Throughput:231.168k messages/s
+
+Standard Deviation: 451,582 ns
+Coefficient of Variation (CV): 2.08%
+
+Repetitions: 5
+
+
+
+Step 1 — Build with debug symbols:
+cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+cmake --build build \
+    --target pipeline_benchmark \
+    -j$(nproc)
+
+Step 2 — Record CPU profile:
+
+rm -f pipeline-simple.data
+
+perf record \
+    -o pipeline-simple.data \
+    -e cpu-clock \
+    -F 199 \
+    -- \
+    ./build/benchmarks/pipeline_benchmark \
+    --benchmark_min_time=3s
+
+
+
+-------------------------------------------------------------------------
+Benchmark               Time             CPU   Iterations UserCounters...
+-------------------------------------------------------------------------
+pipelineReplay   27916207 ns     27909721 ns          144 items_per_second=179.149k/s
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.080 MB pipeline-simple.data (1445 samples) ]
+
+
+Step 3 — Report:
+
+perf report \
+    -i pipeline-simple.data \
+    --stdio \
+    --no-children \
+    --sort overhead,comm,dso,symbol \
+    --percent-limit 1
+
+# Total Lost Samples: 0
+#
+# Samples: 1K of event 'cpu-clock'
+# Event count (approx.): 7261305625
+#
+# Overhead  Command          Shared Object        Symbol                                                                                       IPC   [IPC Coverage]
+# ........  ...............  ...................  ...........................................................................................  ....................
+#
+    96.54%  pipeline_benchm  pipeline_benchmark   [.] ArrayOrderBook::cancelOrder(unsigned long)                                               -      -            
+
+
+
+
+perf annotate \
+    -i pipeline-simple.data \
+    --stdio \
+    'ArrayOrderBook::cancelOrder(unsigned long)' \
+    > cancel_annotate.txt
+
+grep -E '^[[:space:]]*[0-9]+\.[0-9]+[[:space:]]*:' \
+    cancel_annotate.txt \
+    | sort -nr \
+    | head -n 20
+
+
+objdump -CdS build/benchmarks/pipeline_benchmark \
+> pipeline_objdump.txt
+
+
+Step 4 — Hot Functions:
+
+Hotspot 1 — Tombstone Cleanup
+
+The hottest instructions correspond to
+
+clearDeletedEntries();
+
+for (Entry& entry : entries_)
+{
+    if (entry.state == EntryState::Deleted)
+        entry.state = EntryState::Empty;
+}
+
+
+Representative assembly:
+
+cmpb   $0x2,(%rdx)
+jne
+movb   $0x0,(%rdx)
+add    $0x18,%rdx
+cmp    %rdx,%rax
+jne
+
+
+Observation
+
+Whenever the order book becomes empty:
+
+size_ == 0
+
+the implementation scans the entire fixed hash table to convert tombstones back to empty entries.
+
+Since the hash table contains 4096 entries, this operation performs a complete linear traversal.
+
+
+Hotspot 2 — Best Bid Refresh:
+
+
+The second hotspot corresponds to
+
+while (best_bid_ > 0)
+{
+    if (!bid_levels_[best_bid_].empty())
+        break;
+
+    --best_bid_;
+}
+
+Representative assembly:
+
+shl    $0x5,%rax
+cmpq   $0x0,...
+sub    $0x1,%rcx
+jne
+
+
+Observation
+
+After removing the current best bid, the implementation walks downward one price level
+at a time until it finds the next non-empty level.
+
+Root Cause
+
+The replay benchmark repeatedly empties the order book.
+
+As a result, every replay iteration frequently performs:
+
+cancelOrder()
+    ↓
+clearDeletedEntries()
+        ↓
+scan all hash-table entries
+
+refreshBestBid()
+        ↓
+scan price levels
+
+These two linear scans dominate the total execution time of the replay pipeline.
+
+
+
+
+Conclusion
+
+The replay pipeline itself is not the primary bottleneck.
+
+Neither:
+
+Replay reader
+Dispatcher
+ITCH parser
+Mapper
+
+consumes significant CPU time.
+
+Instead, nearly all sampled CPU time is spent inside two linear scans within the software order book implementation.
+
+
+Next Phase (P08)
+
+Only after documenting these findings should optimization begin.
+
+Candidate optimization topics include:
+
+Eliminating the full tombstone cleanup scan.
+Improving best bid / best ask maintenance.
+Measuring the impact of each optimization independently.
+Comparing latency and throughput before and after each change.
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+P08 – FixedHashMap Optimization
+Objective
+
+Optimize the order cancellation path by removing unnecessary work in FixedHashMap::erase().
+
+The previous profiling session identified ArrayOrderBook::cancelOrder() as the dominant CPU hotspot. Further investigation showed that FixedHashMap::erase() performed a full scan of the hash table whenever the container became empty.
+
+
+Root Cause
+
+The implementation contained the following code:
+
+if (size_ == 0)
+{
+    clearDeletedEntries();
+}
+
+clearDeletedEntries() performs a linear scan over every bucket:
+
+for (Entry& entry : entries_)
+{
+    if (entry.state == EntryState::Deleted)
+        entry.state = EntryState::Empty;
+}
+
+Although correct, this cleanup is expensive and is executed every time the last element is erased.
+
+The insert() implementation already reuses deleted buckets during probing, making this cleanup unnecessary for correctness.
+
+
+Optimization
+
+Removed the cleanup call from FixedHashMap::erase().
+
+Before:
+
+entry.state = EntryState::Deleted;
+--size_;
+
+if (size_ == 0)
+{
+    clearDeletedEntries();
+}
+
+After:
+
+entry.state = EntryState::Deleted;
+--size_;
+
+return true;
+
+
+Validation
+
+A new regression test was added:
+
+FixedHashMapTest.ReusesDeletedEntriesAfterBecomingEmpty
+
+The test verifies that:
+
+the table becomes empty,
+deleted entries remain,
+insertion still succeeds,
+deleted slots are correctly reused.
+
+
+
+Test Results
+
+All FixedHashMap unit tests passed.
+
+[==========] Running 10 tests
+[  PASSED  ] 10 tests.
+
+No regressions were observed.
+
+Benchmark
+Commands Executed
+cmake --build build --target pipeline_benchmark -j$(nproc)
+
+./build/benchmarks/pipeline_benchmark
+Before Optimization
+Metric	Value
+Pipeline latency	21.76 ms
+Throughput	229.9k messages/sec
+After Optimization
+Metric	Value
+Pipeline latency	13.17 ms
+Throughput	379.7k messages/sec
+Performance Improvement
+Metric	Improvement
+Latency	39.4% lower
+Throughput	65.1% higher
+Overall Speedup	1.65×
+Profiling
+Commands Executed
+perf record \
+    -e cpu-clock \
+    -g \
+    -o pipeline-after-optimization.data \
+    -- ./build/benchmarks/pipeline_benchmark
+
+perf report \
+    -i pipeline-after-optimization.data
+Profiling Result
+
+Even after the optimization, the primary hotspot remains:
+
+94.28%
+ArrayOrderBook::cancelOrder(unsigned long)
+
+The previous bottleneck inside FixedHashMap::erase() has been removed, but cancelOrder() is still responsible for most of the remaining CPU time.
+
+The next optimization step is to profile cancelOrder() at the source-line level using perf annotate to identify the new dominant hotspot.
+
+Conclusion
+
+The optimization successfully removed unnecessary work from the hash table erase path without affecting correctness.
+
+Regression testing confirmed that deleted slots continue to be reused correctly.
+
+Benchmark results showed a substantial improvement:
+
+39.4% lower latency
+65.1% higher throughput
+1.65× overall speedup
+
+The order cancellation path remains the dominant performance hotspot and will be the focus of the next optimization phase.
+
+
+////////////////////////////////////////////////////////////////////////
+P08
+
+
+perf annotate \
+    -i pipeline-after-optimization.data \
+    --stdio \
+    'ArrayOrderBook::cancelOrder(unsigned long)'
+
+    0.00 :   49a0:        movq    %rcx, %rax
+   39.28 :   49a3:        shlq    $0x5, %rax
+    0.00 :   49a7:        cmpq    $0x0, 0x8(%r8,%rax)
+   20.90 :   49ad:        jne     0x48a4 <ArrayOrderBook::cancelOrder(unsigned long)+0xa4>
+   39.53 :   49b3:        subq    $0x1, %rcx
+    0.03 :   49b7:        movq    %rcx, 0x61a800(%r8)
+    0.00 :   49be:        jne     0x49a0 <ArrayOrderBook::cancelOrder(unsigned long)+0x1a0>
+    0.00 :   49c0:        movq    $0x0, 0x61a800(%r8)
+    0.00 :   49cb:        jmp     0x48a4 <ArrayOrderBook::cancelOrder(unsigned long)+0xa4>
+
+Bottleneck : 
+
+while (best_bid_ > 0)
+{
+    if (!bid_levels_[best_bid_].empty())
+        break;
+
+    --best_bid_;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

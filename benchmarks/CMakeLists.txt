@@ -52,3 +52,19 @@ target_link_libraries(
     PRIVATE
         matching_engine_core
 )
+
+add_executable(
+    pipeline_benchmark
+    pipeline_benchmark.cpp
+)
+
+target_link_libraries(
+    pipeline_benchmark
+    PRIVATE
+        replay
+        gateway
+        benchmark::benchmark
+        benchmark::benchmark_main
+)
+
+

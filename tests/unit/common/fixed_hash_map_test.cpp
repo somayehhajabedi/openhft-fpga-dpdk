@@ -112,3 +112,27 @@ TEST(FixedHashMapTest, EraseMissingKeyReturnsFalse)
     EXPECT_FALSE(map.erase(99));
     EXPECT_EQ(map.size(), 0u);
 }
+TEST(FixedHashMapTest, ReusesDeletedEntriesAfterBecomingEmpty)
+{
+    FixedHashMap<int, int, 4> map;
+
+    EXPECT_TRUE(map.insert(0, 10));
+    EXPECT_TRUE(map.insert(4, 20));
+    EXPECT_TRUE(map.insert(8, 30));
+    EXPECT_TRUE(map.insert(12, 40));
+
+    EXPECT_TRUE(map.erase(0));
+    EXPECT_TRUE(map.erase(4));
+    EXPECT_TRUE(map.erase(8));
+    EXPECT_TRUE(map.erase(12));
+
+    EXPECT_TRUE(map.empty());
+
+    EXPECT_TRUE(map.insert(16, 50));
+
+    const auto* value = map.find(16);
+
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(*value, 50);
+    EXPECT_EQ(map.size(), 1u);
+}

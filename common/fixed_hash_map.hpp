@@ -124,8 +124,16 @@ public:
                 entry.state = EntryState::Deleted;
                 --size_;
 
-                if (size_ == 0)
-                    clearDeletedEntries();
+
+            if (entry.state == EntryState::Occupied &&
+                entry.key == key)
+            {
+                entry.state = EntryState::Deleted;
+                --size_;
+
+                return true;
+            }
+
 
                 return true;
             }
