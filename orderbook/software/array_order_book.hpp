@@ -28,10 +28,10 @@ public:
     OrderId id,
     Quantity cancelledQuantity);
 
-    bool executeOrder(
-        OrderId id,
-        Quantity executedQuantity);
-        
+    OrderUpdateResult executeOrder(
+    OrderId id,
+    Quantity executedQuantity);
+    
     bool replaceOrder(
         OrderId originalOrderId,
         OrderId newOrderId,

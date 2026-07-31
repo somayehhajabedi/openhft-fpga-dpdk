@@ -90,10 +90,14 @@ static void BM_ExecuteOrder(benchmark::State& state)
 
         state.ResumeTiming();
 
-        bool result = book.executeOrder(
-            order.id,
-            50
-        );
+        const OrderUpdateResult result =
+            book.executeOrder(
+                order.id,
+                50
+            );
+
+        benchmark::DoNotOptimize(result.success);
+        benchmark::DoNotOptimize(result.removed_order);
 
         benchmark::DoNotOptimize(result);
     }

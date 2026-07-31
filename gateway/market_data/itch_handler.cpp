@@ -97,7 +97,6 @@ bool ITCHHandler::onOrderCancel(
     return true;
 }
 
-
 bool ITCHHandler::onOrderDelete(
     const std::uint8_t* payload,
     std::size_t length)
@@ -155,12 +154,27 @@ bool ITCHHandler::onOrderExecuted(
         OrderExecutedParser::parse(payload, length);
 
     if (wire == nullptr)
+    {
         return false;
+    }
 
     const OrderExecuted execution =
         OrderExecutedMapper::fromWire(wire);
 
-    return orderBook_.executeOrder(
-        execution.orderReferenceNumber,
-        execution.executedShares);
+    const OrderUpdateResult result =
+        orderBook_.executeOrder(
+            execution.orderReferenceNumber,
+            execution.executedShares);
+
+    if (!result.success)
+    {
+        return false;
+    }
+
+    if (result.removed_order != nullptr)
+    {
+        orderPool_.release(result.removed_order);
+    }
+
+    return true;
 }

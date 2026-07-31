@@ -99,17 +99,13 @@ OrderUpdateResult ArrayOrderBook::reduceOrder(
     return result;
 }
 
+
 bool ArrayOrderBook::replaceOrder(
     OrderId originalOrderId,
     OrderId newOrderId,
     Quantity newQuantity,
     Price newPrice)
 {
-    auto it = order_index_.find(originalOrderId);
-
-    if (it == order_index_.end())
-        return false;
-
     if (newOrderId == 0 ||
         newQuantity == 0 ||
         newOrderId == originalOrderId)
@@ -118,15 +114,28 @@ bool ArrayOrderBook::replaceOrder(
     }
 
     if (order_index_.contains(newOrderId))
+    {
         return false;
+    }
 
-    Order* order = it->second;
+    auto it = order_index_.find(originalOrderId);
 
-    const Side side = order->side;
-    const AccountId accountId = order->account_id;
-
-    if (!cancelOrder(originalOrderId))
+    if (it == order_index_.end())
+    {
         return false;
+    }
+
+    const Side side = it->second->side;
+    const AccountId accountId =
+        it->second->account_id;
+
+    Order* order =
+        cancelOrder(originalOrderId);
+
+    if (order == nullptr)
+    {
+        return false;
+    }
 
     order->id = newOrderId;
     order->account_id = accountId;
@@ -143,14 +152,13 @@ bool ArrayOrderBook::replaceOrder(
     return true;
 }
 
-bool ArrayOrderBook::executeOrder(
+OrderUpdateResult ArrayOrderBook::executeOrder(
     OrderId id,
     Quantity executedQuantity)
 {
-    const OrderUpdateResult result =
-        reduceOrder(id, executedQuantity);
-
-    return result.success;
+    return reduceOrder(
+        id,
+        executedQuantity);
 }
 
 std::size_t ArrayOrderBook::priceToIndex(Price price) const
