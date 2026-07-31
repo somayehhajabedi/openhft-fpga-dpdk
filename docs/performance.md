@@ -2241,8 +2241,29 @@ Benchmark results showed a substantial improvement:
 The order cancellation path remains the dominant performance hotspot and will be the focus of the next optimization phase.
 
 
+
+
+P07
+│
+├── Pipeline benchmark
+├── perf profiling
+└── Bottleneck identification
+
+        ↓
+
+P08 ✅
+│
+├── Root cause analysis
+├── FixedHashMap optimization
+├── Regression test
+├── Benchmark
+├── Performance validation
+├── Documentation
+└── Git commit
+
+
 ////////////////////////////////////////////////////////////////////////
-P08
+P09
 
 
 perf annotate \
@@ -2271,30 +2292,80 @@ while (best_bid_ > 0)
 }
 
 
+# P09 - Bitmap-Based Order Book Optimization
+
+## Objective
+
+Improve the performance of best bid/ask updates by replacing the linear scan in `refreshBestBid()` and `refreshBestAsk()` with a bitmap-based lookup.
+
+---
+
+## Background
+
+Profiling after P08 showed that over 94% of the execution time was spent inside `ArrayOrderBook::cancelOrder()`.
+
+The primary hotspot was the linear scan used to locate the next active price level after the current best level became empty.
+
+---
+
+## Root Cause
+
+Current implementation:
+
+```cpp
+while (best_bid_ > 0)
+{
+    if (!bid_levels_[best_bid_].empty())
+        return;
+
+    --best_bid_;
+}
+
+Complexity:
+
+Best case: O(1)
+Worst case: O(number of empty price levels)
+
+When many consecutive price levels are empty, the loop performs unnecessary memory accesses.
 
 
+Design Goals
+Keep the public API unchanged.
+Minimize changes to existing code.
+Maintain deterministic behaviour.
+Avoid additional dynamic memory allocations.
 
 
+| Operation                     | Bitmap Action      |
+| ----------------------------- | ------------------ |
+| First order added to level    | Set bit            |
+| Last order removed from level | Clear bit          |
+| Quantity reduction            | No change          |
+| Partial execution             | No change          |
+| Replace order                 | Through cancel/add |
 
 
+mkdir -p tests/unit/orderbook
+touch tests/unit/orderbook/array_order_book_test.cpp
+
+cmake -S . -B build
+cmake --build build -j$(nproc)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+docs/
+├── architecture/
+├── design/
+├── performance/
+│   ├── P08_FixedHashMap_Optimization.md
+│   ├── P09_Bitmap_OrderBook_Optimization.md
+│   ├── P10_OrderPool_Optimization.md
+│   ├── P11_CPU_Affinity.md
+│   ├── P12_HugePages.md
+│   ├── P13_NUMA.md
+│   ├── P14_Cache_Optimization.md
+│   ├── P15_Branch_Prediction.md
+│   └── P16_Prefetching.md
+└── benchmarking/
 
 
 

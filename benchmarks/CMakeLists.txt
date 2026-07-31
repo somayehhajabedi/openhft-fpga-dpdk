@@ -68,3 +68,15 @@ target_link_libraries(
 )
 
 
+add_executable(
+    bitmap_benchmark
+    bitmap_benchmark.cpp
+)
+
+target_link_libraries(
+    bitmap_benchmark
+    PRIVATE
+        orderbook
+        benchmark::benchmark
+        benchmark::benchmark_main
+)

@@ -100,13 +100,17 @@ static void BM_ExecuteOrder(benchmark::State& state)
 }
 
 BENCHMARK(BM_AddOrder)
+    ->Iterations(1000)
     ->Unit(benchmark::kNanosecond);
 
 BENCHMARK(BM_CancelOrder)
+    ->Iterations(1000)
     ->Unit(benchmark::kNanosecond);
 
 BENCHMARK(BM_ReplaceOrder)
+    ->Iterations(1000)
     ->Unit(benchmark::kNanosecond);
 
 BENCHMARK(BM_ExecuteOrder)
+    ->Iterations(1000)
     ->Unit(benchmark::kNanosecond);

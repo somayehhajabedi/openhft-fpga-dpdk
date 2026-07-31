@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 
 
 class ArrayOrderBook
@@ -40,6 +41,12 @@ public:
     const PriceLevel* bestAsk() const;
 
 private:
+    static constexpr std::size_t BitsPerBitmapWord = 64;
+
+    static constexpr std::size_t BitmapWordCount =
+        (MaxPriceLevels + BitsPerBitmapWord - 1) /
+        BitsPerBitmapWord;
+
     std::size_t priceToIndex(Price price) const;
 
     PriceLevel& getLevel(
@@ -49,14 +56,29 @@ private:
     void refreshBestBid();
     void refreshBestAsk();
 
+    void setLevelActive(
+        std::array<std::uint64_t, BitmapWordCount>& bitmap,
+        Price price);
+
+    void clearLevelActive(
+        std::array<std::uint64_t, BitmapWordCount>& bitmap,
+        Price price);
+
+    bool isLevelActive(
+        const std::array<std::uint64_t, BitmapWordCount>& bitmap,
+        Price price) const;
+
     std::array<PriceLevel, MaxPriceLevels> bid_levels_;
     std::array<PriceLevel, MaxPriceLevels> ask_levels_;
+
+    std::array<std::uint64_t, BitmapWordCount> bid_level_bitmap_{};
+    std::array<std::uint64_t, BitmapWordCount> ask_level_bitmap_{};
 
     Price best_bid_ = 0;
     Price best_ask_ = 0;
 
     FixedHashMap<
-    OrderId,
-    Order*,
-    DefaultOrderCapacity> order_index_;
+        OrderId,
+        Order*,
+        DefaultOrderCapacity> order_index_;
 };
