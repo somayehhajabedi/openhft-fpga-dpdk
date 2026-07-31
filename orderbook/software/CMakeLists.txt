@@ -6,6 +6,7 @@ add_library(
     orderbook
     STATIC
         array_order_book.cpp
+	order_pool.cpp
 )
 
 target_include_directories(

@@ -80,3 +80,15 @@ target_link_libraries(
         benchmark::benchmark
         benchmark::benchmark_main
 )
+add_executable(
+    order_pool_benchmark
+    order_pool_benchmark.cpp
+)
+
+target_link_libraries(
+    order_pool_benchmark
+    PRIVATE
+        orderbook
+        benchmark::benchmark
+        benchmark::benchmark_main
+)
