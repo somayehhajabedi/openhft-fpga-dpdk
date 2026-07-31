@@ -12,7 +12,8 @@
 ITCHHandler::ITCHHandler(
     ArrayOrderBook& orderBook)
     :
-    orderBook_(orderBook)
+    orderBook_(orderBook),
+    orderPool_(4096)
 {
 }
 
@@ -31,7 +32,12 @@ bool ITCHHandler::onAddOrder(
     const AddOrder add_order =
         AddOrderMapper::fromWire(wire);
 
-    auto order = std::make_unique<Order>();
+    Order* order = orderPool_.acquire();
+
+    if (order == nullptr)
+    {
+        return false;
+    }
 
     order->id =
         add_order.orderReferenceNumber;
@@ -49,9 +55,11 @@ bool ITCHHandler::onAddOrder(
     order->quantity =
         static_cast<Quantity>(add_order.shares);
 
-    orderBook_.addOrder(order.get());
+    order->level = nullptr;
+    order->prev = nullptr;
+    order->next = nullptr;
 
-    orders_.push_back(std::move(order));
+    orderBook_.addOrder(order);
 
     return true;
 }
@@ -64,15 +72,31 @@ bool ITCHHandler::onOrderCancel(
         OrderCancelParser::parse(payload, length);
 
     if (wire == nullptr)
+    {
         return false;
+    }
 
     const OrderCancel cancel =
         OrderCancelMapper::fromWire(wire);
 
-    return orderBook_.reduceOrder(
-        cancel.orderReferenceNumber,
-        cancel.cancelledShares);
+    const OrderUpdateResult result =
+        orderBook_.reduceOrder(
+            cancel.orderReferenceNumber,
+            cancel.cancelledShares);
+
+    if (!result.success)
+    {
+        return false;
+    }
+
+    if (result.removed_order != nullptr)
+    {
+        orderPool_.release(result.removed_order);
+    }
+
+    return true;
 }
+
 
 bool ITCHHandler::onOrderDelete(
     const std::uint8_t* payload,
@@ -82,13 +106,25 @@ bool ITCHHandler::onOrderDelete(
         OrderDeleteParser::parse(payload, length);
 
     if (wire == nullptr)
+    {
         return false;
+    }
 
     const OrderDelete orderDelete =
         OrderDeleteMapper::fromWire(wire);
 
-    return orderBook_.cancelOrder(
-        orderDelete.orderReferenceNumber);
+    Order* order =
+        orderBook_.cancelOrder(
+            orderDelete.orderReferenceNumber);
+
+    if (order == nullptr)
+    {
+        return false;
+    }
+
+    orderPool_.release(order);
+
+    return true;
 }
 
 bool ITCHHandler::onOrderReplace(
