@@ -64,9 +64,6 @@ private:
         std::array<std::uint64_t, BitmapWordCount>& bitmap,
         Price price);
 
-    bool isLevelActive(
-        const std::array<std::uint64_t, BitmapWordCount>& bitmap,
-        Price price) const;
 
     std::array<PriceLevel, MaxPriceLevels> bid_levels_;
     std::array<PriceLevel, MaxPriceLevels> ask_levels_;
