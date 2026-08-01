@@ -35,6 +35,8 @@ add_executable(parser_tests
     unit/common/fixed_hash_map_test.cpp
     unit/orderbook/array_order_book_test.cpp
     unit/orderbook/order_pool_test.cpp
+    unit/common/numa_utils_test.cpp
+
 
     integration/parser_pipeline_test.cpp
     integration/itch_handler_cancel_test.cpp
@@ -66,9 +68,10 @@ target_link_libraries(
         itch_parser
         replay
         gateway
-	    matching_engine_core
+	matching_engine_core
         orderbook
         risk
+	platform_utils
 )
 
 include(GoogleTest)
