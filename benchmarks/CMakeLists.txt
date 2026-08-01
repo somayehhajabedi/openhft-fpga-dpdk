@@ -51,6 +51,7 @@ target_link_libraries(
     matching_engine_profile
     PRIVATE
         matching_engine_core
+	platform_utils
 )
 
 add_executable(

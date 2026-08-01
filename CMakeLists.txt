@@ -1,10 +1,14 @@
+
+
 cmake_minimum_required(VERSION 3.20)
 
 project(
-    OpenHFT
-    VERSION 0.1.0
-    LANGUAGES C CXX
+    OpenHFTFPGADPDK
+    LANGUAGES CXX
 )
+
+find_package(Threads REQUIRED)
+
 
 include(cmake/Warnings.cmake)
 include(cmake/Sanitizers.cmake) 
@@ -22,6 +26,7 @@ add_subdirectory(dpdk/parser/itch)
 
 add_subdirectory(market_data/replay)
 
+add_subdirectory(common)
 add_subdirectory(orderbook/software)
 add_subdirectory(risk)
 add_subdirectory(gateway)

@@ -4,10 +4,15 @@
 #include <vector>
 
 #include <unistd.h>
+#include <cstdlib>
+
+#include <optional>
+#include <string_view>
 
 #include "dispatcher/event_dispatcher.hpp"
 #include "orderbook/software/matching_engine.hpp"
 #include "orderbook/software/order.hpp"
+#include "common/thread_affinity.hpp"
 
 namespace
 {
@@ -62,8 +67,75 @@ void runBatch(
 
 } // namespace
 
-int main()
+namespace
 {
+
+std::optional<std::size_t> parseCpuArgument(
+    int argc,
+    char* argv[])
+{
+    if (argc == 1)
+    {
+        return std::nullopt;
+    }
+
+    if (argc != 3 ||
+        std::string_view(argv[1]) != "--cpu")
+    {
+        std::cerr
+            << "Usage: "
+            << argv[0]
+            << " [--cpu CPU_INDEX]\n";
+
+        std::exit(EXIT_FAILURE);
+    }
+
+    char* end = nullptr;
+
+    const unsigned long cpu =
+        std::strtoul(argv[2], &end, 10);
+
+    if (end == argv[2] || *end != '\0')
+    {
+        std::cerr << "Invalid CPU index: "
+                  << argv[2] << '\n';
+
+        std::exit(EXIT_FAILURE);
+    }
+
+    return static_cast<std::size_t>(cpu);
+}
+
+}
+
+
+    int main(int argc, char* argv[])
+{
+    const auto cpu = parseCpuArgument(argc, argv);
+
+    if (cpu.has_value())
+    {
+        if (!pinCurrentThreadToCpu(*cpu))
+        {
+            std::cerr
+                << "Failed to pin profiling thread to CPU "
+                << *cpu
+                << '\n';
+
+            return EXIT_FAILURE;
+        }
+
+        std::cout
+            << "CPU affinity enabled: CPU "
+            << *cpu
+            << '\n';
+    }
+    else
+    {
+        std::cout << "CPU affinity disabled\n";
+    }
+
+
     std::vector<OrderPair> order_pairs;
     order_pairs.reserve(BatchSize);
 
