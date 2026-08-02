@@ -179,7 +179,7 @@ jobs:
             clang-tidy \
             libgtest-dev \
             libbenchmark-dev \
-            libpcap-dev
+            libpcap-dev \
             libnuma-dev
 
       - name: Generate compile commands
@@ -216,7 +216,7 @@ jobs:
             ninja-build \
             libgtest-dev \
             libbenchmark-dev \
-            libpcap-dev
+            libpcap-dev \
             libnuma-dev
 
       - name: Configure coverage build
