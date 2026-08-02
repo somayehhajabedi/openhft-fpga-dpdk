@@ -31,7 +31,7 @@ jobs:
             ninja-build \
             libgtest-dev \
             libbenchmark-dev \
-            libpcap-dev
+            libpcap-dev \
             libnuma-dev
 
       - name: Configure Release build
@@ -73,7 +73,7 @@ jobs:
             ninja-build \
             libgtest-dev \
             libbenchmark-dev \
-            libpcap-dev
+            libpcap-dev \
             libnuma-dev
 
       - name: Configure ASan and UBSan build
@@ -114,7 +114,7 @@ jobs:
             ninja-build \
             libgtest-dev \
             libbenchmark-dev \
-            libpcap-dev
+            libpcap-dev \
             libnuma-dev
 
       - name: Configure TSan build
