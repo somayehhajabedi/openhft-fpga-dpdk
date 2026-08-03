@@ -119,3 +119,15 @@ target_link_libraries(
         benchmark::benchmark_main
         Threads::Threads
 )
+
+add_executable(
+    allocator_benchmark
+    allocator_benchmark.cpp
+)
+
+target_link_libraries(
+    allocator_benchmark
+    PRIVATE
+        benchmark::benchmark
+        benchmark::benchmark_main
+)
