@@ -36,6 +36,8 @@ add_executable(parser_tests
     unit/orderbook/array_order_book_test.cpp
     unit/orderbook/order_pool_test.cpp
     unit/common/numa_utils_test.cpp
+    unit/common/spsc_ring_buffer_test.cpp
+    unit/common/spsc_queue_metrics_test.cpp
 
 
     integration/parser_pipeline_test.cpp

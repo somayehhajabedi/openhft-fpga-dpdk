@@ -2369,3 +2369,123 @@ docs/
 
 
 
+architecture/
+
+01_system_overview.md
+
+02_market_data_pipeline.md
+
+03_matching_engine.md
+
+04_lockfree_queue.md
+
+05_memory_management.md
+
+06_cpu_affinity.md
+
+07_huge_pages.md
+
+08_numa.md
+
+09_monitoring.md
+
+10_logging_and_wal.md
+
+11_fpga_architecture.md
+
+
+
+
+
+
+
+
+
+docs/
+│
+├── architecture/
+│   ├── system_overview.md
+│   ├── market_data_pipeline.md
+│   ├── matching_engine.md
+│   ├── lockfree_queue.md
+│   ├── memory_management.md
+│   ├── monitoring.md
+│   ├── logging_and_wal.md
+│   └── fpga_architecture.md
+│
+├── benchmarks/
+│   ├── false_sharing.md
+│   ├── allocator.md
+│   ├── numa.md
+│   ├── lockfree_queue.md
+│   └── simd.md
+│
+└── roadmap.md
+
+
+
+
+                 Receiver
+                     │
+                     ▼
+             Parser Thread
+                     │
+              SPSC Queue #1
+                     │
+                     ▼
+           Matching Engine
+          ┌────────┼─────────┐
+          │        │         │
+          ▼        ▼         ▼
+      Queue #2 Queue #3 Queue #4
+          │        │         │
+          ▼        ▼         ▼
+      Logger   Monitoring   WAL
+
+
+
+        Receiver / Parser Thread
+        ↓
+        SPSC Queue
+                ↓
+        Matching Engine Thread
+                ↓
+        SPSC Queues
+        ├── Logger
+        ├── Monitoring
+        └── WAL
+
+
+
+                          NIC
+                           │
+                           ▼
+                   DPDK Receiver
+                           │
+                           ▼
+                    Packet Parser
+                           │
+                           ▼
+                     ITCH Mapper
+                           │
+                    SPSC Queue #1
+                           │
+                           ▼
+                   Matching Engine
+                  (Single Writer)
+          ┌───────────┼───────────┐
+          │           │           │
+          ▼           ▼           ▼
+     SPSC Queue   SPSC Queue   SPSC Queue
+      Logger      Monitoring      WAL
+          │           │           │
+          ▼           ▼           ▼
+     Logger      Prometheus     Binary Log
+                    │
+                    ▼
+                 Grafana
+
+
+
+
+
