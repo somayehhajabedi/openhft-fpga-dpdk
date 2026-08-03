@@ -110,7 +110,42 @@ $ ./build-profile/benchmarks/numa_benchmark \
     --benchmark_report_aggregates_only=true \
     --benchmark_min_time=1s
 
+------------------------------------------------------------------------------------
+Benchmark                          Time             CPU   Iterations UserCounters...
+------------------------------------------------------------------------------------
+BM_StandardMemory_mean         0.763 ms        0.762 ms            5 bytes_per_second=331.904Gi/s
+BM_StandardMemory_median       0.738 ms        0.736 ms            5 bytes_per_second=339.758Gi/s
+BM_StandardMemory_stddev       0.100 ms        0.100 ms            5 bytes_per_second=38.0106Gi/s
+BM_StandardMemory_cv           13.04 %         13.06 %             5 bytes_per_second=11.45%
+BM_NumaNode0Memory_mean        0.743 ms        0.742 ms            5 bytes_per_second=337.357Gi/s
+BM_NumaNode0Memory_median      0.734 ms        0.734 ms            5 bytes_per_second=340.44Gi/s
+BM_NumaNode0Memory_stddev      0.028 ms        0.026 ms            5 bytes_per_second=11.6952Gi/s
+BM_NumaNode0Memory_cv           3.77 %          3.49 %             5 bytes_per_second=3.47%
 
+
+## Results
+
+The benchmark was executed on a single-socket, single-NUMA-node system.
+
+As expected, both standard allocation and explicit NUMA allocation used the
+same physical NUMA node.
+
+The measured execution times were nearly identical:
+
+| Allocation | Mean |
+|------------|------|
+| Standard | 0.763 ms |
+| NUMA Node 0 | 0.743 ms |
+
+The small difference (~2.6%) is within the range of normal benchmark
+variation and should not be interpreted as a NUMA performance improvement.
+
+The benchmark confirms that explicit NUMA allocation does not provide a
+meaningful advantage on single-node systems.
+
+Its primary value is portability: the same API can be used unchanged on
+multi-socket servers, where local and remote memory placement can have a
+significant impact on latency and bandwidth.
 
 
 
