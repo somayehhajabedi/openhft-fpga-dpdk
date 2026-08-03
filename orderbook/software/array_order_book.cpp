@@ -296,7 +296,7 @@ void ArrayOrderBook::refreshBestAsk()
 
         word = ask_level_bitmap_[wordIndex];
     }
-    
+
     // Find the lowest active price within the bitmap word.
     const std::size_t lowestSetBit =
         static_cast<std::size_t>(std::countr_zero(word));
@@ -334,19 +334,5 @@ void ArrayOrderBook::clearLevelActive(
     const std::size_t bit  = index % BitsPerBitmapWord;
 
     bitmap[word] &= ~(std::uint64_t{1} << bit);
-}
-
-// Returns true if the specified price level currently contains
-// at least one order.
-bool ArrayOrderBook::isLevelActive(
-    const std::array<std::uint64_t, BitmapWordCount>& bitmap,
-    Price price) const
-{
-    const std::size_t index = priceToIndex(price);
-
-    const std::size_t word = index / BitsPerBitmapWord;
-    const std::size_t bit  = index % BitsPerBitmapWord;
-
-    return (bitmap[word] & (std::uint64_t{1} << bit)) != 0;
 }
 
