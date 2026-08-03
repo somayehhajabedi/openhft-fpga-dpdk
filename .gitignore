@@ -4,11 +4,19 @@ build/
 tests/build/
 Testing
 
+
+# Linux perf output
+perf*.data
+perf*.data.old
+
+
 CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
 compile_commands.json
+perf.data
+perf.data.old
 
 # Local captures
 data/
