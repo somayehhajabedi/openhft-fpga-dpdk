@@ -145,4 +145,26 @@ target_link_libraries(
         benchmark::benchmark_main
 )
 
+add_executable(
+    lockfree_queue_benchmark
+    lockfree_queue_benchmark.cpp
+)
+
+target_include_directories(
+    lockfree_queue_benchmark
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(
+    lockfree_queue_benchmark
+    PRIVATE
+        benchmark::benchmark
+        benchmark::benchmark_main
+        Threads::Threads
+)
+
+
+
+
 
