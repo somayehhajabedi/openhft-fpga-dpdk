@@ -106,3 +106,16 @@ target_link_libraries(
         benchmark::benchmark
         benchmark::benchmark_main
 )
+
+add_executable(
+    false_sharing_benchmark
+    false_sharing_benchmark.cpp
+)
+
+target_link_libraries(
+    false_sharing_benchmark
+    PRIVATE
+        benchmark::benchmark
+        benchmark::benchmark_main
+        Threads::Threads
+)
