@@ -51,7 +51,7 @@ target_link_libraries(
     matching_engine_profile
     PRIVATE
         matching_engine_core
-	platform_utils
+	    platform_utils
 )
 
 add_executable(
@@ -131,3 +131,18 @@ target_link_libraries(
         benchmark::benchmark
         benchmark::benchmark_main
 )
+
+add_executable(
+    numa_benchmark
+    numa_benchmark.cpp
+)
+
+target_link_libraries(
+    numa_benchmark
+    PRIVATE
+        platform_utils
+        benchmark::benchmark
+        benchmark::benchmark_main
+)
+
+

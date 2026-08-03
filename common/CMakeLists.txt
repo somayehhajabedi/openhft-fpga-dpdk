@@ -1,7 +1,9 @@
+
 add_library(
     platform_utils
     STATIC
         thread_affinity.cpp
+        numa_utils.cpp
 )
 
 target_include_directories(
@@ -15,4 +17,5 @@ target_link_libraries(
     platform_utils
     PUBLIC
         Threads::Threads
+        numa
 )
