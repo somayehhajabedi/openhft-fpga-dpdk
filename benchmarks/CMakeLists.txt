@@ -93,3 +93,16 @@ target_link_libraries(
         benchmark::benchmark
         benchmark::benchmark_main
 )
+
+
+add_executable(
+    huge_page_benchmark
+    huge_page_benchmark.cpp
+)
+
+target_link_libraries(
+    huge_page_benchmark
+    PRIVATE
+        benchmark::benchmark
+        benchmark::benchmark_main
+)
