@@ -49,15 +49,14 @@ bool MarketDataPipeline::submit(
 
 void MarketDataPipeline::processingLoop()
 {
-    using namespace std::chrono_literals;
-
-    while (running_)
+    while (running_.load(
+        std::memory_order_acquire))
     {
-        dispatcher_.dispatch();
-
-        std::this_thread::sleep_for(1us);
+        static_cast<void>(
+            dispatcher_.dispatch());
     }
 
-    // Drain remaining events before exiting.
-    dispatcher_.dispatch();
+    // Drain events that were queued before shutdown.
+    static_cast<void>(
+        dispatcher_.dispatch());
 }

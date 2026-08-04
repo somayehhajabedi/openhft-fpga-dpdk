@@ -1,0 +1,29 @@
+2026-08-04T14:32:29-04:00
+Running ./build-release/benchmarks/market_data_pipeline_benchmark
+Run on (8 X 4656.88 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x4)
+  L1 Instruction 32 KiB (x4)
+  L2 Unified 256 KiB (x4)
+  L3 Unified 8192 KiB (x1)
+Load Average: 0.22, 0.56, 0.60
+------------------------------------------------------------------------------------------
+Benchmark                                Time             CPU   Iterations UserCounters...
+------------------------------------------------------------------------------------------
+BM_MarketDataPipeline/real_time       90.4 ms         90.4 ms           15 items_per_second=11.0572M/s
+
+ Performance counter stats for './build-release/benchmarks/market_data_pipeline_benchmark --benchmark_filter=BM_MarketDataPipeline --benchmark_min_time=1s':
+
+    20,264,887,057      cycles                                                                  (66.67%)
+     1,510,583,254      instructions                                                            (83.45%)
+     1,508,795,911      cache-references                                                        (83.36%)
+         1,025,301      cache-misses                                                            (83.17%)
+       283,287,773      branches                                                                (83.47%)
+           903,010      branch-misses                                                           (83.34%)
+
+       2.395586465 seconds time elapsed
+
+       4.694367000 seconds user
+       0.013031000 seconds sys
+
+

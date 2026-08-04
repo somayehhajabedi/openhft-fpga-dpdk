@@ -1,4 +1,3 @@
-find_package(benchmark REQUIRED)
 
 add_executable(
     orderbook_benchmark
@@ -68,7 +67,6 @@ target_link_libraries(
         benchmark::benchmark_main
 )
 
-
 add_executable(
     bitmap_benchmark
     bitmap_benchmark.cpp
@@ -93,7 +91,6 @@ target_link_libraries(
         benchmark::benchmark
         benchmark::benchmark_main
 )
-
 
 add_executable(
     huge_page_benchmark
@@ -164,7 +161,23 @@ target_link_libraries(
         Threads::Threads
 )
 
+add_executable(
+    market_data_pipeline_benchmark
+    market_data_pipeline_benchmark.cpp
+)
 
+target_include_directories(
+    market_data_pipeline_benchmark
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}
+)
 
+target_link_libraries(
+    market_data_pipeline_benchmark
+    PRIVATE
+        benchmark::benchmark
+        market_data_pipeline
+        Threads::Threads
+)
 
 
