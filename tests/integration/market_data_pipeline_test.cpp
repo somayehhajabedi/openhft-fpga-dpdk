@@ -14,7 +14,10 @@
 #include "pipeline/market_data_event.hpp"
 #include "pipeline/market_data_pipeline.hpp"
 
+#include <atomic>
+#include <chrono>
 #include <cstddef>
+#include <thread>
 
 namespace
 {
@@ -25,13 +28,19 @@ public:
     void consume(
         const MarketDataEvent& event) override
     {
-        lastEvent = event;
-        ++consumedCount;
+        lastEventType.store(
+            event.type,
+            std::memory_order_relaxed);
+
+        consumedCount.fetch_add(
+            1,
+            std::memory_order_release);
     }
 
-    MarketDataEvent lastEvent{};
+    std::atomic<MarketDataEventType> lastEventType{
+        MarketDataEventType::AddOrder};
 
-    std::size_t consumedCount{0};
+    std::atomic<std::size_t> consumedCount{0};
 };
 
 } // namespace
@@ -40,10 +49,14 @@ TEST(
     MarketDataPipelineTest,
     SubmitsAndDispatchesEvent)
 {
+    using namespace std::chrono_literals;
+
     TestConsumer consumer;
 
     MarketDataPipeline pipeline(
         consumer);
+
+    pipeline.start();
 
     const MarketDataEvent event{
         .type = MarketDataEventType::AddOrder
@@ -52,13 +65,26 @@ TEST(
     ASSERT_TRUE(
         pipeline.submit(event));
 
-    pipeline.start();
+    const auto deadline =
+        std::chrono::steady_clock::now() + 100ms;
+
+    while (
+        consumer.consumedCount.load(
+            std::memory_order_acquire) == 0 &&
+        std::chrono::steady_clock::now() < deadline)
+    {
+        std::this_thread::yield();
+    }
+
+    pipeline.stop();
 
     EXPECT_EQ(
-        consumer.consumedCount,
+        consumer.consumedCount.load(
+            std::memory_order_acquire),
         1U);
 
     EXPECT_EQ(
-        consumer.lastEvent.type,
+        consumer.lastEventType.load(
+            std::memory_order_relaxed),
         MarketDataEventType::AddOrder);
 }

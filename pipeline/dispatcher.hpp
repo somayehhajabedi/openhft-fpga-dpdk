@@ -42,9 +42,11 @@
  * - Integrate monitoring.
  */
 
+#pragma once
+
 #include "common/spsc_ring_buffer.hpp"
-#include "pipeline/market_data_event.hpp"
 #include "pipeline/event_consumer.hpp"
+#include "pipeline/market_data_event.hpp"
 
 #include <cstddef>
 
@@ -60,13 +62,15 @@ public:
             QueueCapacity>;
 
     explicit Dispatcher(
-       EventQueue& queue,
-       EventConsumer& consumer);
+        EventQueue& queue,
+        EventConsumer& consumer);
 
-    void dispatch();
+    [[nodiscard]]
+    bool dispatch();
 
 private:
 
     EventQueue& queue_;
+
     EventConsumer& consumer_;
 };

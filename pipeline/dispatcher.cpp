@@ -4,12 +4,11 @@
  * Dispatcher Implementation
  *
  * The dispatcher continuously removes MarketDataEvent objects
- * from the SPSC queue.
+ * from the SPSC queue and forwards them to the configured
+ * EventConsumer.
  *
- * At this stage the dispatcher only validates the integration
- * between the queue and the pipeline.
- *
- * Matching Engine integration will be added later.
+ * Matching Engine integration will be added in a later
+ * milestone.
  */
 
 Dispatcher::Dispatcher(
@@ -21,13 +20,19 @@ Dispatcher::Dispatcher(
 {
 }
 
-void Dispatcher::dispatch()
+bool Dispatcher::dispatch()
 {
     MarketDataEvent event;
+
+    bool dispatched{false};
 
     while (queue_.tryPop(event))
     {
         consumer_.consume(event);
+
+        dispatched = true;
     }
+
+    return dispatched;
 }
 
