@@ -3,12 +3,84 @@
 
 
 
-MatchingEngine::MatchingEngine(EventDispatcher& dispatcher)
-    : dispatcher_(dispatcher)
+MatchingEngine::MatchingEngine(
+    EventDispatcher& dispatcher)
+    :
+    orderPool_(DefaultOrderCapacity),
+    dispatcher_(dispatcher)
 {
 }
 
-void MatchingEngine::process(Order* order)
+
+
+bool MatchingEngine::process(
+    const MarketDataEvent& event)
+{
+    switch (event.type)
+    {
+        case MarketDataEventType::CancelOrder:
+        {
+            const OrderUpdateResult result =
+                book_.reduceOrder(
+                    event.orderId,
+                    event.quantity);
+
+            releaseIfOwned(result.removed_order);
+            return result.success;
+        }
+
+        case MarketDataEventType::DeleteOrder:
+        {
+            Order* removedOrder =
+                book_.cancelOrder(event.orderId);
+
+            releaseIfOwned(removedOrder);
+            return removedOrder != nullptr;
+        }
+
+        case MarketDataEventType::ExecuteOrder:
+        {
+            const OrderUpdateResult result =
+                book_.executeOrder(
+                    event.orderId,
+                    event.quantity);
+
+            releaseIfOwned(result.removed_order);
+            return result.success;
+        }
+
+        case MarketDataEventType::AddOrder:
+        {
+            Order* order = orderPool_.acquire();
+
+            if (order == nullptr)
+            {
+                return false;
+            }
+
+            order->id = event.orderId;
+            order->account_id = event.accountId;
+            order->side = event.side;
+            order->price = event.price;
+            order->quantity = event.quantity;
+
+            order->level = nullptr;
+            order->prev = nullptr;
+            order->next = nullptr;
+
+            process(order);
+
+            return true;
+        }
+
+
+    }
+
+    return false;
+}
+
+void MatchingEngine::process(
+    Order* order)
 {
     if (canCross(order))
     {
@@ -34,16 +106,25 @@ bool MatchingEngine::canCross(const Order* order) const
     return best_bid && order->price <= best_bid->price;
 }
 
-void MatchingEngine::executeTrade(Order* incoming)
+void MatchingEngine::executeTrade(
+    Order* incoming)
 {
     while (incoming->quantity > 0 && canCross(incoming))
     {
         if (!matchOne(incoming))
+        {
             break;
+        }
     }
 
     if (incoming->quantity > 0)
+    {
         book_.addOrder(incoming);
+    }
+    else
+    {
+        releaseIfOwned(incoming);
+    }
 }
 
 bool MatchingEngine::matchOne(Order* incoming)
@@ -79,7 +160,12 @@ bool MatchingEngine::matchOne(Order* incoming)
         resting->level->total_quantity -= traded_quantity;
 
     if (resting->quantity == 0)
-        book_.cancelOrder(resting->id);
+    {
+        Order* removedOrder =
+            book_.cancelOrder(resting->id);
+
+        releaseIfOwned(removedOrder);
+    }
 
     return traded_quantity > 0;
 }
@@ -114,5 +200,14 @@ Trade MatchingEngine::createTrade(const Order* incoming,
     trade.sequence = sequencer_.next();
 
     return trade;
+}
+
+void MatchingEngine::releaseIfOwned(
+    Order* order)
+{
+    if (orderPool_.owns(order))
+    {
+        orderPool_.release(order);
+    }
 }
 

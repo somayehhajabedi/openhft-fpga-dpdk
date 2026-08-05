@@ -52,6 +52,7 @@ add_executable(parser_tests
     integration/matching_engine_resting_order_test.cpp
     integration/matching_engine_partial_incoming_test.cpp
     integration/matching_engine_partial_resting_test.cpp
+    integration/market_data_pipeline_test.cpp
 )
 
 target_include_directories(
@@ -74,6 +75,7 @@ target_link_libraries(
         orderbook
         risk
 	platform_utils
+	market_data_pipeline
 )
 
 include(GoogleTest)

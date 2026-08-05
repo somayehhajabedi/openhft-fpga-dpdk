@@ -43,3 +43,22 @@ std::size_t OrderPool::available() const
 {
     return free_list_.size();
 }
+
+#include <functional>
+
+bool OrderPool::owns(
+    const Order* order) const
+{
+    if (order == nullptr || storage_.empty())
+    {
+        return false;
+    }
+
+    const Order* begin = storage_.data();
+    const Order* end   = begin + storage_.size();
+
+    const std::less<const Order*> less{};
+
+    return !less(order, begin) &&
+            less(order, end);
+}
