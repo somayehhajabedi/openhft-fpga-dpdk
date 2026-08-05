@@ -15,20 +15,29 @@ bool MatchingEngine::process(
 {
     switch (event.type)
     {
-        case MarketDataEventType::AddOrder:
-            break;
-
         case MarketDataEventType::CancelOrder:
-            break;
+            return book_.reduceOrder(
+                event.orderId,
+                event.quantity).success;
 
         case MarketDataEventType::DeleteOrder:
-            break;
+            return book_.cancelOrder(
+                event.orderId) != nullptr;
 
         case MarketDataEventType::ExecuteOrder:
-            break;
+            return book_.executeOrder(
+                event.orderId,
+                event.quantity).success;
 
         case MarketDataEventType::ReplaceOrder:
-            break;
+            return book_.replaceOrder(
+                event.orderId,
+                event.newOrderId,
+                event.quantity,
+                event.price);
+
+        case MarketDataEventType::AddOrder:
+            return false;
     }
 
     return false;
