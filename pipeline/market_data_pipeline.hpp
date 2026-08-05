@@ -27,20 +27,38 @@
  *          ▼
  *       UDP Parser
  *          ▼
- *      ITCH Parser
- *          ▼
- *      ITCH Mapper
- *          ▼
- *   MarketDataEvent
- *          ▼
- *    SPSC Ring Buffer
- *          ▼
- *      Dispatcher
- *          ▼
- *   Matching Engine
- *
+        ITCH Parser
+            │
+            ▼
+        MarketDataEvent
+            │
+            ▼
+        Dispatcher
+            │
+            ▼
+        MatchingEngineConsumer
+            │
+            ▼
+        MatchingEngine
+            │
+            ▼
+        ArrayOrderBook
+
+
+
  * The pipeline owns the communication queue between the producer
  * and consumer stages.
+ */
+
+
+ /*
+ * Matching Engine Consumer
+ * ========================
+ *
+ * Receives normalized MarketDataEvent objects from the pipeline
+ * and forwards them to MatchingEngine.
+ *
+ * MatchingEngine owns the event-specific processing logic.
  */
 
 #include "common/spsc_ring_buffer.hpp"

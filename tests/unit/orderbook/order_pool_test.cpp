@@ -58,3 +58,28 @@ TEST(OrderPoolTest, ReleaseUsesLifoOrder)
     EXPECT_EQ(pool.acquire(), second);
     EXPECT_EQ(pool.acquire(), first);
 }
+
+TEST(OrderPoolTest, OwnsAcquiredOrder)
+{
+    OrderPool pool(2);
+
+    Order* order = pool.acquire();
+
+    EXPECT_TRUE(pool.owns(order));
+}
+
+TEST(OrderPoolTest, DoesNotOwnExternalOrder)
+{
+    OrderPool pool(2);
+
+    Order externalOrder{};
+
+    EXPECT_FALSE(pool.owns(&externalOrder));
+}
+
+TEST(OrderPoolTest, DoesNotOwnNullptr)
+{
+    OrderPool pool(2);
+
+    EXPECT_FALSE(pool.owns(nullptr));
+}

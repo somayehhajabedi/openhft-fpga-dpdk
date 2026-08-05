@@ -18,6 +18,9 @@ public:
 
     std::size_t available() const;
 
+    bool owns(
+    const Order* order) const;
+
 private:
     std::vector<Order> storage_;
     std::vector<Order*> free_list_;
