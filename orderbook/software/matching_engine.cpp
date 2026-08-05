@@ -8,7 +8,34 @@ MatchingEngine::MatchingEngine(EventDispatcher& dispatcher)
 {
 }
 
-void MatchingEngine::process(Order* order)
+
+
+bool MatchingEngine::process(
+    const MarketDataEvent& event)
+{
+    switch (event.type)
+    {
+        case MarketDataEventType::AddOrder:
+            break;
+
+        case MarketDataEventType::CancelOrder:
+            break;
+
+        case MarketDataEventType::DeleteOrder:
+            break;
+
+        case MarketDataEventType::ExecuteOrder:
+            break;
+
+        case MarketDataEventType::ReplaceOrder:
+            break;
+    }
+
+    return false;
+}
+
+void MatchingEngine::process(
+    Order* order)
 {
     if (canCross(order))
     {
@@ -19,6 +46,8 @@ void MatchingEngine::process(Order* order)
         book_.addOrder(order);
     }
 }
+
+
 
 bool MatchingEngine::canCross(const Order* order) const
 {

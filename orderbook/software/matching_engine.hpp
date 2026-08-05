@@ -5,15 +5,25 @@
 #include "../../dispatcher/event_dispatcher.hpp"
 #include "order.hpp"
 #include "trade.hpp"
+#include "pipeline/market_data_event.hpp"
 
 class MatchingEngine
 {
 public:
+    public:
     explicit MatchingEngine(EventDispatcher& dispatcher);
 
-    void process(Order* order);
+    bool process(
+        const MarketDataEvent& event);
+
+    void process(
+        Order* order);
 
 private:
+private:
+ private:
+
+    
     bool canCross(const Order* order) const;
     void executeTrade(Order* incoming);
     bool matchOne(Order* incoming);

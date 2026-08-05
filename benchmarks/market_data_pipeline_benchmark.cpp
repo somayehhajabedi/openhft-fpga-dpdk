@@ -39,7 +39,7 @@ public:
     void consume(
         const MarketDataEvent& event) override
     {
-        benchmark::DoNotOptimize(event.type);
+        static_cast<void>(event);
 
         consumedCount_.fetch_add(
             1,
