@@ -53,6 +53,7 @@ add_executable(parser_tests
     integration/matching_engine_partial_incoming_test.cpp
     integration/matching_engine_partial_resting_test.cpp
     integration/market_data_pipeline_test.cpp
+    integration/event_based_matching_engine_pipeline_test.cpp
 )
 
 target_include_directories(
