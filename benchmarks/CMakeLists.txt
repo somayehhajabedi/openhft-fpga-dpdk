@@ -179,5 +179,24 @@ target_link_libraries(
         market_data_pipeline
         Threads::Threads
 )
+add_executable(
+    market_data_pipeline_latency_benchmark
+    market_data_pipeline_latency_benchmark.cpp
+)
+
+target_include_directories(
+    market_data_pipeline_latency_benchmark
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(
+    market_data_pipeline_latency_benchmark
+    PRIVATE
+        benchmark::benchmark
+        market_data_pipeline
+        Threads::Threads
+)
+
 
 
