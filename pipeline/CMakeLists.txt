@@ -20,4 +20,5 @@ target_link_libraries(
     PUBLIC
         Threads::Threads
         matching_engine_core
+        platform_utils
 )

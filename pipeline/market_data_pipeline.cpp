@@ -1,12 +1,16 @@
 #include "pipeline/market_data_pipeline.hpp"
 
-#include <chrono>
+#include "common/thread_affinity.hpp"
+
+#include <atomic>
 
 MarketDataPipeline::MarketDataPipeline(
-    EventConsumer& consumer)
+    EventConsumer& consumer,
+    std::optional<std::size_t> workerCpu)
     :
     queue_{},
-    dispatcher_(queue_, consumer)
+    dispatcher_(queue_, consumer),
+    workerCpu_(workerCpu)
 {
 }
 
@@ -49,6 +53,13 @@ bool MarketDataPipeline::submit(
 
 void MarketDataPipeline::processingLoop()
 {
+    if (workerCpu_.has_value())
+    {
+        static_cast<void>(
+            pinCurrentThreadToCpu(
+                workerCpu_.value()));
+    }
+
     while (running_.load(
         std::memory_order_acquire))
     {

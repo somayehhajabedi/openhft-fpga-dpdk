@@ -155,3 +155,45 @@ Performance instrumentation must be designed so it does not itself create alloca
 Prometheus is appropriate later for aggregated observability; precise microbenchmark percentile measurement should remain local to the benchmark/histogram path.
 
 OpenHFT-FPGA-DPDK • Market Data Pipeline Latency
+
+
+
+
+
+
+perf stat \
+  -e cycles,instructions,cache-references,cache-misses,branches,branch-misses,context-switches,cpu-migrations,page-faults \
+  ./build-release/benchmarks/market_data_pipeline_latency_benchmark
+2026-08-09T17:46:04-04:00
+Running ./build-release/benchmarks/market_data_pipeline_latency_benchmark
+Run on (8 X 4300.94 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x4)
+  L1 Instruction 32 KiB (x4)
+  L2 Unified 256 KiB (x4)
+  L3 Unified 8192 KiB (x1)
+Load Average: 0.42, 0.48, 0.48
+------------------------------------------------------------------------------------------------------------
+Benchmark                                                  Time             CPU   Iterations UserCounters...
+------------------------------------------------------------------------------------------------------------
+BM_MarketDataPipelineLatency/real_time              10014774 ns      9993994 ns           76 items_per_second=9.98525M/s max_ns=467.708k p50_ns=407.365k p95_ns=450.22k p999_ns=467.439k p99_ns=466.177k
+BM_MarketDataPipelineUncontendedLatency/real_time   24235452 ns     24218100 ns           30 items_per_second=4.12619M/s max_ns=44.85k p50_ns=155 p95_ns=170 p999_ns=193 p99_ns=177
+
+ Performance counter stats for './build-release/benchmarks/market_data_pipeline_latency_benchmark':
+
+    17,202,252,468      cycles                                                                  (66.93%)
+    11,769,901,809      instructions                                                            (83.48%)
+       811,333,377      cache-references                                                        (83.65%)
+         4,566,235      cache-misses                                                            (83.61%)
+     2,891,142,710      branches                                                                (83.58%)
+        59,301,281      branch-misses                                                           (83.60%)
+               284      context-switches                                                      
+                 4      cpu-migrations                                                        
+               613      page-faults                                                           
+
+       2.290634620 seconds time elapsed
+
+       4.105403000 seconds user
+       0.014035000 seconds sys
+
+

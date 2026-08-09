@@ -1,8 +1,9 @@
+#pragma once
+
 /*
  * Market Data Pipeline
  * --------------------
- * 
- * *
+ *
  * Owns the asynchronous market-data pipeline connecting the
  * producer thread to the Dispatcher through a lock-free
  * Single Producer Single Consumer (SPSC) queue.
@@ -13,52 +14,23 @@
  * - Own the SPSC queue.
  * - Manage the worker thread lifecycle.
  * - Forward queued events to the Dispatcher.
+ * - Optionally pin the worker thread to a CPU.
  *
- * Coordinates the complete market-data processing pipeline.
+ * Data flow:
  *
- * Planned data flow:
- *
- *   DPDK Receiver
- *          │
- *          ▼
- *   Ethernet Parser
- *          ▼
- *      IPv4 Parser
- *          ▼
- *       UDP Parser
- *          ▼
-        ITCH Parser
-            │
-            ▼
-        MarketDataEvent
-            │
-            ▼
-        Dispatcher
-            │
-            ▼
-        MatchingEngineConsumer
-            │
-            ▼
-        MatchingEngine
-            │
-            ▼
-        ArrayOrderBook
-
-
-
- * The pipeline owns the communication queue between the producer
- * and consumer stages.
- */
-
-
- /*
- * Matching Engine Consumer
- * ========================
- *
- * Receives normalized MarketDataEvent objects from the pipeline
- * and forwards them to MatchingEngine.
- *
- * MatchingEngine owns the event-specific processing logic.
+ *   Producer
+ *      |
+ *      v
+ *   MarketDataEvent
+ *      |
+ *      v
+ *   SPSC Queue
+ *      |
+ *      v
+ *   Dispatcher
+ *      |
+ *      v
+ *   EventConsumer
  */
 
 #include "common/spsc_ring_buffer.hpp"
@@ -69,14 +41,15 @@
 
 #include <atomic>
 #include <cstddef>
+#include <optional>
 #include <thread>
 
 class MarketDataPipeline final : public Pipeline
 {
 public:
-
     explicit MarketDataPipeline(
-        EventConsumer& consumer);
+        EventConsumer& consumer,
+        std::optional<std::size_t> workerCpu = std::nullopt);
 
     ~MarketDataPipeline() override;
 
@@ -88,7 +61,6 @@ public:
         const MarketDataEvent& event);
 
 private:
-
     static constexpr std::size_t QueueCapacity = 4096;
 
     using EventQueue =
@@ -105,4 +77,6 @@ private:
     std::thread worker_;
 
     std::atomic<bool> running_{false};
+
+    std::optional<std::size_t> workerCpu_;
 };
