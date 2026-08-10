@@ -239,3 +239,247 @@ IRQ affinity / deeper tracing  ← next
 
 
 
+/////////////////////////////////
+
+
+## IRQ Affinity Experiment
+
+### Objective
+
+After CPU affinity and CPU isolation, rare latency spikes in the
+tens-of-microseconds range were still observed.
+
+The next experiment investigated whether hardware interrupts,
+particularly Wi-Fi interrupts, were responsible for these extreme
+tail-latency outliers.
+
+### Initial IRQ Distribution
+
+Inspection of `/proc/interrupts` showed that Wi-Fi interrupts were
+still executing on the latency-sensitive CPUs.
+
+Relevant examples included:
+
+```text
+IRQ 171 -> iwlwifi:default_queue
+IRQ 174 -> iwlwifi:queue_3
+IRQ 175 -> iwlwifi:queue_4
+```
+
+CPU 2 and CPU 3 are used by the latency-sensitive pipeline threads.
+
+Despite booting with:
+
+```text
+isolcpus=2,3,6,7
+```
+
+Wi-Fi interrupts were still observed on CPU 2 and CPU 3.
+
+This demonstrates an important distinction:
+
+> CPU scheduler isolation does not automatically imply IRQ isolation.
+
+### IRQ Affinity Configuration
+
+The system's `irqbalance` service was verified to be inactive before
+manually changing IRQ affinity.
+
+The relevant Wi-Fi IRQs were moved to the housekeeping CPUs:
+
+```text
+0,1,4,5
+```
+
+using:
+
+```bash
+echo 0,1,4,5 | sudo tee /proc/irq/171/smp_affinity_list
+echo 0,1,4,5 | sudo tee /proc/irq/174/smp_affinity_list
+echo 0,1,4,5 | sudo tee /proc/irq/175/smp_affinity_list
+```
+
+The resulting affinity configuration was verified as:
+
+```text
+IRQ 171: 0-1,4-5
+IRQ 174: 0-1,4-5
+IRQ 175: 0-1,4-5
+```
+
+This removed these Wi-Fi IRQs from the latency-sensitive CPU set:
+
+```text
+2,3,6,7
+```
+
+---
+
+### Benchmark Results
+
+The uncontended latency benchmark was executed five times after
+applying IRQ affinity.
+
+| Run | p50 | p95 | p99 | p99.9 | Max |
+|---|---:|---:|---:|---:|---:|
+| 1 | 160 ns | 175 ns | 183 ns | 207 ns | 42.958 us |
+| 2 | 151 ns | 166 ns | 172 ns | 191 ns | 46.644 us |
+| 3 | 152 ns | 172 ns | 180 ns | 202 ns | 16.997 us |
+| 4 | 161 ns | 174 ns | 182 ns | 207 ns | 38.859 us |
+| 5 | 169 ns | 184 ns | 193 ns | 249 ns | 56.225 us |
+
+The normal latency distribution remained approximately:
+
+```text
+p50    = 151-169 ns
+p99    = 172-193 ns
+p99.9  = 191-249 ns
+```
+
+However, extreme maximum latency remained highly variable:
+
+```text
+max = 17.0-56.2 us
+```
+
+---
+
+## Comparison With CPU Isolation Baseline
+
+Before manually moving the Wi-Fi IRQs, five runs after CPU isolation
+produced:
+
+| Metric | CPU Isolation | CPU Isolation + IRQ Affinity |
+|---|---:|---:|
+| p50 | 148-163 ns | 151-169 ns |
+| p99 | 173-194 ns | 172-193 ns |
+| p99.9 | 194-214 ns | 191-249 ns |
+| Max | 37.5-43.4 us | 17.0-56.2 us |
+
+The central latency distribution remained almost unchanged.
+
+IRQ affinity therefore did not produce a consistent reduction in
+extreme tail latency.
+
+One run reached a maximum latency of only approximately 17 us, while
+another reached approximately 56 us.
+
+The variation indicates that Wi-Fi IRQ placement alone does not
+explain the recurring latency spikes.
+
+---
+
+## Findings So Far
+
+The investigation has progressively tested several possible sources
+of latency variation:
+
+```text
+Market Data Pipeline
+        |
+        v
+CPU affinity
+        |
+        v
+Scheduler analysis with perf sched
+        |
+        v
+CPU topology analysis
+        |
+        v
+Wi-Fi disable experiment
+        |
+        v
+CPU isolation
+        |
+        v
+Wi-Fi IRQ affinity
+        |
+        v
+Extreme tail-latency spikes still remain
+```
+
+The uncontended pipeline consistently achieves approximately
+150-200 ns typical latency.
+
+The p99 and p99.9 latency are also generally sub-microsecond.
+
+However, rare outliers in the tens-of-microseconds range remain
+reproducible.
+
+The experiments so far indicate that the extreme outliers cannot be
+explained solely by:
+
+- normal Linux scheduler placement
+- Wi-Fi activity
+- CPU affinity
+- scheduler CPU isolation
+- Wi-Fi IRQ placement
+
+---
+
+## Important Observation
+
+The benchmark currently measures each event using
+`std::chrono::steady_clock::now()`.
+
+Therefore, before applying additional system-level tuning, the
+measurement methodology itself should also be investigated.
+
+Potential remaining sources include:
+
+- other hardware interrupts
+- kernel threads
+- softirq activity
+- System Management Interrupts (SMIs)
+- SMT sibling interference
+- CPU frequency and power-state transitions
+- timer and kernel housekeeping activity
+- page faults
+- clock-reading overhead
+- benchmark instrumentation
+- preemption occurring between the start and end timestamps
+
+At this stage, applying additional optimizations without identifying
+the source of the outlier would risk optimizing based on speculation.
+
+---
+
+## Next Step: Correlate the Spike With System Activity
+
+The next phase should focus on identifying what happens during the
+rare 20-60 us latency events.
+
+Instead of modifying additional system parameters immediately, the
+goal will be to correlate latency spikes with observable system
+activity.
+
+The investigation should include:
+
+1. tracing scheduler activity around latency spikes
+2. inspecting remaining IRQ activity on the isolated CPUs
+3. investigating softirq and kernel-thread activity
+4. validating the latency measurement methodology
+5. evaluating the cost and behavior of `steady_clock::now()`
+6. investigating SMT and CPU power-management effects if necessary
+
+The objective is to move from:
+
+```text
+"We observe a ~40 us latency spike."
+```
+
+to:
+
+```text
+"A ~40 us latency spike occurred because of X."
+```
+
+Only after identifying that cause should further low-latency tuning
+be applied.
+
+
+
+
+
+
