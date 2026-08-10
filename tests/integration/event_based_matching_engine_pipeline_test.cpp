@@ -8,28 +8,28 @@
  *
  * The test exercises the following flow:
  *
- *     MarketDataEvent
- *             │
- *             ▼
- *     MarketDataPipeline
- *             │
- *             ▼
- *        Dispatcher
- *             │
- *             ▼
- *  MatchingEngineConsumer
- *             │
- *             ▼
- *      MatchingEngine
- *             │
- *             ▼
- *       ArrayOrderBook
- *             │
- *             ▼
- *      EventDispatcher
- *             │
- *             ▼
- *     PositionManager
+ * MarketDataEvent
+ *      |
+ *      v
+ * MarketDataPipeline
+ *      |
+ *      v
+ * Dispatcher
+ *      |
+ *      v
+ * MatchingEngineConsumer
+ *      |
+ *      v
+ * MatchingEngine
+ *      |
+ *      v
+ * ArrayOrderBook
+ *      |
+ *      v
+ * EventDispatcher
+ *      |
+ *      v
+ * PositionManager
  *
  * Scenario
  * --------
@@ -40,8 +40,8 @@
  *
  * Expected positions:
  *
- *     Buyer  = +30
- *     Seller = -30
+ * Buyer  = +30
+ * Seller = -30
  */
 
 #include <gtest/gtest.h>
@@ -68,13 +68,17 @@ TEST(
     PositionManager positionManager;
 
     EventDispatcher eventDispatcher;
-    eventDispatcher.addListener(&positionManager);
+    eventDispatcher.addListener(
+        &positionManager);
 
-    MatchingEngine matchingEngine(eventDispatcher);
+    MatchingEngine matchingEngine(
+        eventDispatcher);
 
-    MatchingEngineConsumer consumer(matchingEngine);
+    MatchingEngineConsumer consumer(
+        matchingEngine);
 
-    MarketDataPipeline pipeline(consumer);
+    MarketDataPipeline pipeline(
+        consumer);
 
     pipeline.start();
 
@@ -118,22 +122,29 @@ TEST(
         pipeline.submit(addBuy));
 
     const auto deadline =
-        std::chrono::steady_clock::now() + 100ms;
+        std::chrono::steady_clock::now()
+        + 100ms;
 
     while (
-        positionManager.position(BuyerAccountId) != 30 &&
+        pipeline.processedCount() < 3 &&
         std::chrono::steady_clock::now() < deadline)
     {
         std::this_thread::yield();
     }
 
+    EXPECT_EQ(
+        pipeline.processedCount(),
+        3U);
+
     pipeline.stop();
 
     EXPECT_EQ(
-        positionManager.position(BuyerAccountId),
+        positionManager.position(
+            BuyerAccountId),
         30);
 
     EXPECT_EQ(
-        positionManager.position(SellerAccountId),
+        positionManager.position(
+            SellerAccountId),
         -30);
 }

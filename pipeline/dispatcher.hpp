@@ -53,7 +53,6 @@
 class Dispatcher
 {
 public:
-
     static constexpr std::size_t QueueCapacity = 4096;
 
     using EventQueue =
@@ -66,11 +65,9 @@ public:
         EventConsumer& consumer);
 
     [[nodiscard]]
-    bool dispatch();
+    std::size_t dispatch();
 
 private:
-
     EventQueue& queue_;
-
     EventConsumer& consumer_;
 };

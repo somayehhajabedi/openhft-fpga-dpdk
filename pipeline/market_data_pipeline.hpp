@@ -33,6 +33,8 @@
  *   EventConsumer
  */
 
+#pragma once
+
 #include "common/spsc_ring_buffer.hpp"
 #include "pipeline/dispatcher.hpp"
 #include "pipeline/event_consumer.hpp"
@@ -60,6 +62,9 @@ public:
     bool submit(
         const MarketDataEvent& event);
 
+    [[nodiscard]]
+    std::size_t processedCount() const noexcept;
+
 private:
     static constexpr std::size_t QueueCapacity = 4096;
 
@@ -77,6 +82,8 @@ private:
     std::thread worker_;
 
     std::atomic<bool> running_{false};
+
+    std::atomic<std::size_t> processedCount_{0};
 
     std::optional<std::size_t> workerCpu_;
 };

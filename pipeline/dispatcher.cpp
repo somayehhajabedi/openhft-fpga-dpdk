@@ -1,4 +1,3 @@
-#include "pipeline/dispatcher.hpp"
 
 /*
  * Dispatcher Implementation
@@ -11,6 +10,8 @@
  * milestone.
  */
 
+#include "pipeline/dispatcher.hpp"
+
 Dispatcher::Dispatcher(
     EventQueue& queue,
     EventConsumer& consumer)
@@ -20,19 +21,19 @@ Dispatcher::Dispatcher(
 {
 }
 
-bool Dispatcher::dispatch()
+std::size_t Dispatcher::dispatch()
 {
     MarketDataEvent event;
 
-    bool dispatched{false};
+    std::size_t dispatchedCount{0};
 
     while (queue_.tryPop(event))
     {
         consumer_.consume(event);
 
-        dispatched = true;
+        ++dispatchedCount;
     }
 
-    return dispatched;
+    return dispatchedCount;
 }
 

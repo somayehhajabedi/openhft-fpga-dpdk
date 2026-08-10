@@ -26,6 +26,10 @@ void MarketDataPipeline::start()
         return;
     }
 
+    processedCount_.store(
+        0,
+        std::memory_order_relaxed);
+
     worker_ =
         std::thread(
             &MarketDataPipeline::processingLoop,
@@ -51,6 +55,12 @@ bool MarketDataPipeline::submit(
     return queue_.tryPush(event);
 }
 
+std::size_t MarketDataPipeline::processedCount() const noexcept
+{
+    return processedCount_.load(
+        std::memory_order_acquire);
+}
+
 void MarketDataPipeline::processingLoop()
 {
     if (workerCpu_.has_value())
@@ -63,11 +73,25 @@ void MarketDataPipeline::processingLoop()
     while (running_.load(
         std::memory_order_acquire))
     {
-        static_cast<void>(
-            dispatcher_.dispatch());
+        const std::size_t processed =
+            dispatcher_.dispatch();
+
+        if (processed > 0)
+        {
+            processedCount_.fetch_add(
+                processed,
+                std::memory_order_release);
+        }
     }
 
     // Drain events that were queued before shutdown.
-    static_cast<void>(
-        dispatcher_.dispatch());
+    const std::size_t processed =
+        dispatcher_.dispatch();
+
+    if (processed > 0)
+    {
+        processedCount_.fetch_add(
+            processed,
+            std::memory_order_release);
+    }
 }
