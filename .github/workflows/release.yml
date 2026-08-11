@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libgtest-dev \
+            libbenchmark-dev \
+            libpcap-dev \
+            libnuma-dev
+
+      - name: Configure Release build
+        run: |
+          cmake -S . -B build-release \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DOPENHFT_BUILD_TESTS=ON
+
+      - name: Build
+        run: |
+          cmake --build build-release --parallel
+
+      - name: Run tests
+        run: |
+          ctest \
+            --test-dir build-release \
+            --output-on-failure
+
+      - name: Create release package
+        run: |
+          PACKAGE_DIR="openhft-fpga-dpdk-${GITHUB_REF_NAME}-linux-x86_64"
+
+          mkdir -p "${PACKAGE_DIR}/bin"
+
+          cp build-release/apps/matching_engine_demo \
+            "${PACKAGE_DIR}/bin/"
+
+          cp README.md "${PACKAGE_DIR}/"
+          cp LICENSE "${PACKAGE_DIR}/"
+
+          tar -czf \
+            "${PACKAGE_DIR}.tar.gz" \
+            "${PACKAGE_DIR}"
+
+      - name: Generate SHA256 checksum
+        run: |
+          sha256sum \
+            "openhft-fpga-dpdk-${GITHUB_REF_NAME}-linux-x86_64.tar.gz" \
+            > "openhft-fpga-dpdk-${GITHUB_REF_NAME}-linux-x86_64.tar.gz.sha256"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            openhft-fpga-dpdk-${{ github.ref_name }}-linux-x86_64.tar.gz
+            openhft-fpga-dpdk-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
+          generate_release_notes: true
