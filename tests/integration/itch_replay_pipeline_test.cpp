@@ -3,6 +3,8 @@
 
 #include <arpa/inet.h>
 #include <endian.h>
+#include <chrono>
+#include <thread>
 
 #include <cstdint>
 #include <cstdio>
@@ -16,10 +18,11 @@
 #include "dpdk/parser/itch/messages/order_executed.hpp"
 #include "dpdk/parser/itch/messages/order_replace.hpp"
 
-#include "gateway/market_data/itch_handler.hpp"
+#include "pipeline/market_data_book_consumer.hpp"
 #include "market_data/replay/itch_replay_dispatcher.hpp"
 #include "market_data/replay/itch_replay_reader.hpp"
 #include "orderbook/software/array_order_book.hpp"
+#include "pipeline/market_data_pipeline.hpp"
 
 namespace
 {
@@ -118,10 +121,19 @@ TEST(ItchReplayPipelineTest, ReplaysMessagesIntoOrderBook)
         writeMessage(stream, deleteMessage);
     }
 
+    
     ArrayOrderBook orderBook;
-    ITCHHandler handler(orderBook);
-    ItchReplayDispatcher dispatcher(handler);
+
+    MarketDataBookConsumer consumer(orderBook);
+
+    MarketDataPipeline pipeline(consumer);
+
+    ItchReplayDispatcher dispatcher(pipeline);
+
     ItchReplayReader reader(path);
+
+    pipeline.start();
+
 
     ASSERT_TRUE(reader.isOpen());
 
@@ -137,6 +149,23 @@ TEST(ItchReplayPipelineTest, ReplaysMessagesIntoOrderBook)
 
         ++dispatchedMessages;
     }
+
+    const auto deadline =
+    std::chrono::steady_clock::now()
+    + std::chrono::milliseconds(100);
+
+    while (
+       pipeline.processedCount() < dispatchedMessages &&
+       std::chrono::steady_clock::now() < deadline)
+    {
+       std::this_thread::yield();
+    }
+
+    EXPECT_EQ(
+        pipeline.processedCount(),
+        dispatchedMessages);
+
+    pipeline.stop();
 
     EXPECT_EQ(dispatchedMessages, 5U);
     EXPECT_EQ(orderBook.bestBid(), nullptr);

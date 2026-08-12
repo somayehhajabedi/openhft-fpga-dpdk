@@ -1,19 +1,20 @@
 #pragma once
 
+#include "pipeline/market_data_event_sink.hpp"
+
 #include <cstddef>
 #include <cstdint>
-
-class ITCHHandler;
 
 class ItchReplayDispatcher
 {
 public:
-    explicit ItchReplayDispatcher(ITCHHandler& handler);
 
+    explicit ItchReplayDispatcher(
+         MarketDataEventSink& sink);
     bool dispatch(
         const std::uint8_t* message,
         std::size_t length);
 
 private:
-    ITCHHandler& handler_;
+    MarketDataEventSink& sink_;
 };

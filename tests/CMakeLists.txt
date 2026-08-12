@@ -38,13 +38,11 @@ add_executable(parser_tests
     unit/common/numa_utils_test.cpp
     unit/common/spsc_ring_buffer_test.cpp
     unit/common/spsc_queue_metrics_test.cpp
+    unit/pipeline/market_data_book_consumer_test.cpp
+
 
 
     integration/parser_pipeline_test.cpp
-    integration/itch_handler_cancel_test.cpp
-    integration/itch_handler_delete_test.cpp
-    integration/itch_handler_execute_test.cpp
-    integration/itch_handler_replace_test.cpp
     integration/itch_replay_pipeline_test.cpp
     integration/gateway_test.cpp
     integration/matching_engine_fifo_test.cpp

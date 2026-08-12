@@ -9,14 +9,16 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <thread>
 
+#include "pipeline/market_data_pipeline.hpp"
 #include "dpdk/parser/itch/messages/add_order.hpp"
 #include "dpdk/parser/itch/messages/order_cancel.hpp"
 #include "dpdk/parser/itch/messages/order_delete.hpp"
 #include "dpdk/parser/itch/messages/order_executed.hpp"
 #include "dpdk/parser/itch/messages/order_replace.hpp"
 
-#include "gateway/market_data/itch_handler.hpp"
+#include "pipeline/market_data_book_consumer.hpp"
 #include "market_data/replay/itch_replay_dispatcher.hpp"
 #include "market_data/replay/itch_replay_reader.hpp"
 #include "orderbook/software/array_order_book.hpp"
@@ -122,15 +124,25 @@ void pipelineReplay(benchmark::State& state)
 
     for (auto _ : state)
     {
+	
         ArrayOrderBook orderBook;
-        ITCHHandler handler(orderBook);
-        ItchReplayDispatcher dispatcher(handler);
+
+        MarketDataBookConsumer consumer(orderBook);
+
+        MarketDataPipeline pipeline(consumer);
+
+        ItchReplayDispatcher dispatcher(pipeline);
+
         ItchReplayReader reader(ReplayPath);
+
+        pipeline.start();
 
         if (!reader.isOpen())
         {
             state.SkipWithError(
                 "Failed to open replay benchmark file");
+
+	    pipeline.stop();
             break;
         }
 
@@ -150,6 +162,13 @@ void pipelineReplay(benchmark::State& state)
 
             ++dispatchedMessages;
         }
+
+        while (pipeline.processedCount() < dispatchedMessages)
+        {
+            std::this_thread::yield();
+        }
+
+pipeline.stop();
 
         benchmark::DoNotOptimize(
             orderBook.bestBid());

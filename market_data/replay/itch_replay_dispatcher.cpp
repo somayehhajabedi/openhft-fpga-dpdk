@@ -1,10 +1,23 @@
 #include "itch_replay_dispatcher.hpp"
 
-#include "gateway/market_data/itch_handler.hpp"
+#include "dpdk/parser/itch/messages/add_order.hpp"
+#include "dpdk/parser/itch/messages/order_cancel_parser.hpp"
+#include "dpdk/parser/itch/messages/order_delete_parser.hpp"
+#include "dpdk/parser/itch/messages/order_executed_parser.hpp"
+#include "dpdk/parser/itch/messages/order_replace_parser.hpp"
+
+#include "dpdk/parser/itch/mapper/add_order_mapper.hpp"
+#include "dpdk/parser/itch/mapper/order_cancel_mapper.hpp"
+#include "dpdk/parser/itch/mapper/order_delete_mapper.hpp"
+#include "dpdk/parser/itch/mapper/order_executed_mapper.hpp"
+#include "dpdk/parser/itch/mapper/order_replace_mapper.hpp"
+
+#include "pipeline/market_data_event.hpp"
 
 ItchReplayDispatcher::ItchReplayDispatcher(
-    ITCHHandler& handler)
-    : handler_(handler)
+    MarketDataEventSink& sink)
+    :
+    sink_(sink)
 {
 }
 
@@ -13,7 +26,9 @@ bool ItchReplayDispatcher::dispatch(
     std::size_t length)
 {
     if (message == nullptr || length == 0)
+    {
         return false;
+    }
 
     const char messageType =
         static_cast<char>(message[0]);
@@ -21,21 +36,153 @@ bool ItchReplayDispatcher::dispatch(
     switch (messageType)
     {
         case 'A':
-            return handler_.onAddOrder(message, length);
+        {
+            const AddOrderWireMessage* wire =
+                AddOrderParser::parse(
+                    message,
+                    length);
+
+            if (wire == nullptr)
+            {
+                return false;
+            }
+
+            const AddOrder order =
+                AddOrderMapper::fromWire(wire);
+
+            const MarketDataEvent event{
+                .type = MarketDataEventType::AddOrder,
+                .orderId = order.orderReferenceNumber,
+                .newOrderId = 0,
+                .accountId = 0,
+                .side =
+                    order.isBuy
+                        ? Side::Buy
+                        : Side::Sell,
+                .price =
+                    static_cast<Price>(
+                        order.price),
+                .quantity =
+                    static_cast<Quantity>(
+                        order.shares)
+            };
+
+	    return sink_.submit(event);
+
+        }
 
         case 'X':
-            return handler_.onOrderCancel(message, length);
+        {
+            const OrderCancelWireMessage* wire =
+                OrderCancelParser::parse(
+                    message,
+                    length);
+
+            if (wire == nullptr)
+            {
+                return false;
+            }
+
+            const OrderCancel cancel =
+                OrderCancelMapper::fromWire(wire);
+
+            const MarketDataEvent event{
+                .type = MarketDataEventType::CancelOrder,
+                .orderId =
+                    cancel.orderReferenceNumber,
+                .quantity =
+                    static_cast<Quantity>(
+                        cancel.cancelledShares)
+            };
+	    return sink_.submit(event);
+        }
 
         case 'D':
-            return handler_.onOrderDelete(message, length);
+        {
+            const OrderDeleteWireMessage* wire =
+                OrderDeleteParser::parse(
+                    message,
+                    length);
+
+            if (wire == nullptr)
+            {
+                return false;
+            }
+
+            const OrderDelete deletion =
+                OrderDeleteMapper::fromWire(wire);
+
+            const MarketDataEvent event{
+                .type = MarketDataEventType::DeleteOrder,
+                .orderId =
+                    deletion.orderReferenceNumber
+            };
+	
+	    return sink_.submit(event);
+        }
 
         case 'E':
-            return handler_.onOrderExecuted(message, length);
+        {
+            const OrderExecutedWireMessage* wire =
+                OrderExecutedParser::parse(
+                    message,
+                    length);
+
+            if (wire == nullptr)
+            {
+                return false;
+            }
+
+            const OrderExecuted execution =
+                OrderExecutedMapper::fromWire(wire);
+
+            const MarketDataEvent event{
+                .type = MarketDataEventType::ExecuteOrder,
+                .orderId =
+                    execution.orderReferenceNumber,
+                .quantity =
+                    static_cast<Quantity>(
+                        execution.executedShares)
+            };
+	    
+	    return sink_.submit(event);
+        }
 
         case 'U':
-            return handler_.onOrderReplace(message, length);
+        {
+            const OrderReplaceWireMessage* wire =
+                OrderReplaceParser::parse(
+                    message,
+                    length);
+
+            if (wire == nullptr)
+            {
+                return false;
+            }
+
+            const OrderReplace replacement =
+                OrderReplaceMapper::fromWire(wire);
+
+            const MarketDataEvent event{
+                .type = MarketDataEventType::ReplaceOrder,
+                .orderId =
+                    replacement.originalOrderReferenceNumber,
+                .newOrderId =
+                    replacement.newOrderReferenceNumber,
+                .price =
+                    static_cast<Price>(
+                        replacement.price),
+                .quantity =
+                    static_cast<Quantity>(
+                        replacement.shares)
+            };
+
+	    return sink_.submit(event);
+        }
 
         default:
+        {
             return false;
+        }
     }
 }

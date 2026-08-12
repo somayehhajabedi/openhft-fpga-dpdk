@@ -63,6 +63,7 @@ target_link_libraries(
     PRIVATE
         replay
         gateway
+        market_data_pipeline
         benchmark::benchmark
         benchmark::benchmark_main
 )
@@ -179,6 +180,8 @@ target_link_libraries(
         market_data_pipeline
         Threads::Threads
 )
+
+
 add_executable(
     market_data_pipeline_latency_benchmark
     market_data_pipeline_latency_benchmark.cpp
@@ -197,6 +200,3 @@ target_link_libraries(
         market_data_pipeline
         Threads::Threads
 )
-
-
-

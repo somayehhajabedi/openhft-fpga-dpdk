@@ -2,7 +2,6 @@ add_library(
     gateway
     STATIC
         gateway.cpp
-        market_data/itch_handler.cpp
 )
 
 target_include_directories(
