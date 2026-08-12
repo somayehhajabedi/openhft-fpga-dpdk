@@ -6,6 +6,8 @@ add_library(
         dispatcher.cpp
         market_data_pipeline.cpp
         matching_engine_consumer.cpp
+	market_data_book_consumer.cpp
+
 )
 
 target_include_directories(

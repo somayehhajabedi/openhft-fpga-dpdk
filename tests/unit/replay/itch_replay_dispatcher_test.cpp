@@ -7,28 +7,43 @@
 
 #include "dpdk/parser/itch/messages/add_order.hpp"
 #include "market_data/replay/itch_replay_dispatcher.hpp"
-#include "gateway/market_data/itch_handler.hpp"
-#include "orderbook/software/array_order_book.hpp"
 #include "dpdk/parser/itch/messages/order_cancel.hpp"
 #include "dpdk/parser/itch/messages/order_delete.hpp"
 #include "dpdk/parser/itch/messages/order_executed.hpp"
 #include "dpdk/parser/itch/messages/order_replace.hpp"
 
 
+class RecordingMarketDataEventSink final
+    : public MarketDataEventSink
+{
+public:
+    bool submit(
+        const MarketDataEvent& event) override
+    {
+        lastEvent = event;
+        submitted = true;
+        return true;
+    }
+
+    MarketDataEvent lastEvent{};
+    bool submitted{false};
+};
+
+
 TEST(ItchReplayDispatcherTest, RejectsNullMessage)
 {
-    ArrayOrderBook orderBook;
-    ITCHHandler handler(orderBook);
-    ItchReplayDispatcher dispatcher(handler);
+	
+    RecordingMarketDataEventSink sink;
+    ItchReplayDispatcher dispatcher(sink);
 
     EXPECT_FALSE(dispatcher.dispatch(nullptr, 0));
 }
 
 TEST(ItchReplayDispatcherTest, RejectsEmptyMessage)
 {
-    ArrayOrderBook orderBook;
-    ITCHHandler handler(orderBook);
-    ItchReplayDispatcher dispatcher(handler);
+
+    RecordingMarketDataEventSink sink;
+    ItchReplayDispatcher dispatcher(sink);
 
     const std::uint8_t dummy = 0;
 
@@ -37,9 +52,9 @@ TEST(ItchReplayDispatcherTest, RejectsEmptyMessage)
 
 TEST(ItchReplayDispatcherTest, RejectsUnknownMessageType)
 {
-    ArrayOrderBook orderBook;
-    ITCHHandler handler(orderBook);
-    ItchReplayDispatcher dispatcher(handler);
+ 
+    RecordingMarketDataEventSink sink;
+    ItchReplayDispatcher dispatcher(sink);
 
     const std::uint8_t message[]{'?'};
 
@@ -52,10 +67,10 @@ TEST(ItchReplayDispatcherTest, RejectsUnknownMessageType)
 
 TEST(ItchReplayDispatcherTest, DispatchesAddOrder)
 {
-    ArrayOrderBook orderBook;
-    ITCHHandler handler(orderBook);
-    ItchReplayDispatcher dispatcher(handler);
 
+    RecordingMarketDataEventSink sink;
+    ItchReplayDispatcher dispatcher(sink);
+    
     constexpr std::uint64_t orderId = 5001;
     constexpr std::uint32_t quantity = 1000;
     constexpr std::uint32_t price = 12500;
@@ -67,29 +82,43 @@ TEST(ItchReplayDispatcherTest, DispatchesAddOrder)
     message.buy_sell_indicator = 'B';
     message.shares = htonl(quantity);
     message.price = htonl(price);
-
+    
     ASSERT_TRUE(
-        dispatcher.dispatch(
-            reinterpret_cast<const std::uint8_t*>(&message),
-            sizeof(message)));
+    dispatcher.dispatch(
+        reinterpret_cast<const std::uint8_t*>(&message),
+        sizeof(message)));
 
-    const PriceLevel* bestBid = orderBook.bestBid();
+    ASSERT_TRUE(sink.submitted);
 
-    ASSERT_NE(bestBid, nullptr);
-    ASSERT_NE(bestBid->head, nullptr);
+    EXPECT_EQ(
+       sink.lastEvent.type,
+       MarketDataEventType::AddOrder);
 
-    EXPECT_EQ(bestBid->head->id, orderId);
-    EXPECT_EQ(bestBid->head->quantity, quantity);
-    EXPECT_EQ(bestBid->head->price, price);
+    EXPECT_EQ(
+       sink.lastEvent.orderId,
+       orderId);
+
+    EXPECT_EQ(
+       sink.lastEvent.side,
+       Side::Buy);
+
+    EXPECT_EQ(
+       sink.lastEvent.quantity,
+       quantity);
+
+    EXPECT_EQ(
+       sink.lastEvent.price,
+       price);
 }
 
 
 
 TEST(ItchReplayDispatcherTest, DispatchesOrderCancel)
 {
-    ArrayOrderBook orderBook;
-    ITCHHandler handler(orderBook);
-    ItchReplayDispatcher dispatcher(handler);
+
+    
+    RecordingMarketDataEventSink sink;
+    ItchReplayDispatcher dispatcher(sink);
 
     constexpr std::uint64_t orderId = 5002;
     constexpr std::uint32_t initialQuantity = 1000;
@@ -133,9 +162,9 @@ TEST(ItchReplayDispatcherTest, DispatchesOrderCancel)
 
 TEST(ItchReplayDispatcherTest, DispatchesOrderDelete)
 {
-    ArrayOrderBook orderBook;
-    ITCHHandler handler(orderBook);
-    ItchReplayDispatcher dispatcher(handler);
+
+    RecordingMarketDataEventSink sink;
+    ItchReplayDispatcher dispatcher(sink);
 
     constexpr std::uint64_t orderId = 5003;
     constexpr std::uint32_t quantity = 1000;
@@ -170,9 +199,9 @@ TEST(ItchReplayDispatcherTest, DispatchesOrderDelete)
 }
 TEST(ItchReplayDispatcherTest, DispatchesOrderExecuted)
 {
-    ArrayOrderBook orderBook;
-    ITCHHandler handler(orderBook);
-    ItchReplayDispatcher dispatcher(handler);
+
+    RecordingMarketDataEventSink sink;
+    ItchReplayDispatcher dispatcher(sink);
 
     constexpr std::uint64_t orderId = 5004;
     constexpr std::uint32_t initialQuantity = 1000;
@@ -217,9 +246,9 @@ TEST(ItchReplayDispatcherTest, DispatchesOrderExecuted)
 
 TEST(ItchReplayDispatcherTest, DispatchesOrderReplace)
 {
-    ArrayOrderBook orderBook;
-    ITCHHandler handler(orderBook);
-    ItchReplayDispatcher dispatcher(handler);
+
+    RecordingMarketDataEventSink sink;
+    ItchReplayDispatcher dispatcher(sink);
 
     constexpr std::uint64_t originalOrderId = 5005;
     constexpr std::uint64_t newOrderId = 6005;

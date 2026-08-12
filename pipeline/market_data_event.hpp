@@ -23,8 +23,7 @@ ReplaceOrder   orderId, newOrderId, price, quantity
 
  */
 
-#include "common/types.hpp"
-
+#include "orderbook/software/common/types.hpp"
 #include <cstdint>
 
 enum class MarketDataEventType : std::uint8_t

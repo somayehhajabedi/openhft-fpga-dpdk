@@ -40,13 +40,16 @@
 #include "pipeline/event_consumer.hpp"
 #include "pipeline/market_data_event.hpp"
 #include "pipeline/pipeline.hpp"
+#include "pipeline/market_data_event_sink.hpp"
 
 #include <atomic>
 #include <cstddef>
 #include <optional>
 #include <thread>
 
-class MarketDataPipeline final : public Pipeline
+class MarketDataPipeline final
+    : public Pipeline,
+      public MarketDataEventSink
 {
 public:
     explicit MarketDataPipeline(
@@ -60,7 +63,8 @@ public:
     void stop() override;
 
     bool submit(
-        const MarketDataEvent& event);
+         const MarketDataEvent& event) override;
+
 
     [[nodiscard]]
     std::size_t processedCount() const noexcept;
