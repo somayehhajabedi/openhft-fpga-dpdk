@@ -3,15 +3,17 @@
 #include <cstdint>
 #include <unordered_map>
 
-#include "../orderbook/software/order.hpp"
+#include "models/order_intent.hpp"
 #include "risk_result.hpp"
 
 class RiskManager
 {
 public:
-    RiskResult check(const Order* order) const;
+    RiskResult check(
+        const OrderIntent& intent) const;
 
-    void onAccepted(const Order* order);
+    void onAccepted(
+        const OrderIntent& intent);
 
 private:
     static constexpr Quantity MaxOrderQuantity = 100000;

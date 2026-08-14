@@ -1,18 +1,21 @@
 #pragma once
 
-#include "../orderbook/software/matching_engine.hpp"
-#include "../orderbook/software/order.hpp"
-#include "../risk/risk_manager.hpp"
-#include "../risk/risk_result.hpp"
+#include "gateway/order_execution_sink.hpp"
+#include "risk/risk_manager.hpp"
+#include "risk/risk_result.hpp"
 
 class Gateway
 {
 public:
-    Gateway(MatchingEngine& engine, RiskManager& risk_manager);
+    Gateway(
+        RiskManager& riskManager,
+        OrderExecutionSink& executionSink);
 
-    [[nodiscard]] RiskResult submit(Order* order);
+    [[nodiscard]]
+    RiskResult submit(
+        const OrderIntent& intent);
 
 private:
-    MatchingEngine& engine_;
-    RiskManager& risk_manager_;
+    RiskManager& riskManager_;
+    OrderExecutionSink& executionSink_;
 };

@@ -5,7 +5,6 @@ add_library(
     STATIC
         dispatcher.cpp
         market_data_pipeline.cpp
-        matching_engine_consumer.cpp
 	market_data_book_consumer.cpp
 
 )
