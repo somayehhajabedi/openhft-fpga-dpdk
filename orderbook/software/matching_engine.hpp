@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include "array_order_book.hpp"
 #include "order.hpp"
 #include "order_pool.hpp"
@@ -7,9 +9,6 @@
 
 #include "../../dispatcher/event_dispatcher.hpp"
 #include "../../sequencer/sequencer.hpp"
-#include "pipeline/market_data_event.hpp"
-
-#include <cstddef>
 
 class MatchingEngine
 {
@@ -19,15 +18,18 @@ public:
     explicit MatchingEngine(
         EventDispatcher& dispatcher);
 
-    bool process(
-        const MarketDataEvent& event);
-
-    // Legacy API used by Gateway, tests and benchmarks.
+    // Low-level API used by tests and benchmarks.
     void process(
         Order* order);
 
-private:
+    [[nodiscard]]
+    bool submitOrder(
+        AccountId accountId,
+        Side side,
+        Price price,
+        Quantity quantity);
 
+private:
     void releaseIfOwned(
         Order* order);
 
@@ -44,10 +46,11 @@ private:
         const Order* incoming,
         const Order* resting,
         Quantity tradedQuantity);
-   
 
     ArrayOrderBook book_;
     OrderPool orderPool_;
     EventDispatcher& dispatcher_;
     Sequencer sequencer_;
+
+    OrderId nextOrderId_{1};
 };

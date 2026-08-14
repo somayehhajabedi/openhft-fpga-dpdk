@@ -28,6 +28,7 @@ add_subdirectory(dpdk/parser/ipv4)
 add_subdirectory(dpdk/parser/udp)
 add_subdirectory(dpdk/parser/itch)
 add_subdirectory(pipeline)
+add_subdirectory(strategy)
 
 
 add_subdirectory(market_data/replay)

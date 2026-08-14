@@ -1,67 +1,70 @@
+
 #include <gtest/gtest.h>
 
+#include "models/order_intent.hpp"
 #include "risk/risk_manager.hpp"
 
 TEST(RiskManagerTest, AcceptValidOrder)
 {
     RiskManager risk;
 
-    Order order{
-        .id = 1,
-        .account_id = 1,
+    const OrderIntent intent{
+        .accountId = 1001,
         .side = Side::Buy,
         .price = 100,
-        .quantity = 10
+        .quantity = 100
     };
 
     EXPECT_EQ(
-        risk.check(&order),
+        risk.check(intent),
         RiskResult::Accepted);
 }
+
 TEST(RiskManagerTest, RejectZeroPrice)
 {
     RiskManager risk;
 
-    Order order{
-        .id = 1,
-        .account_id = 1,
+    const OrderIntent intent{
+        .accountId = 1001,
         .side = Side::Buy,
         .price = 0,
-        .quantity = 10
+        .quantity = 100
     };
 
-    EXPECT_EQ(risk.check(&order), RiskResult::InvalidPrice);
+    EXPECT_EQ(
+        risk.check(intent),
+        RiskResult::InvalidPrice);
 }
 
 TEST(RiskManagerTest, RejectZeroQuantity)
 {
     RiskManager risk;
 
-    Order order{
-        .id = 1,
-        .account_id = 1,
+    const OrderIntent intent{
+        .accountId = 1001,
         .side = Side::Buy,
         .price = 100,
         .quantity = 0
     };
 
-    EXPECT_EQ(risk.check(&order), RiskResult::InvalidQuantity);
+    EXPECT_EQ(
+        risk.check(intent),
+        RiskResult::InvalidQuantity);
 }
 
 TEST(RiskManagerTest, RejectTooLargeQuantity)
 {
     RiskManager risk;
 
-    Order order{
-        .id = 1,
-        .account_id = 1,
+    const OrderIntent intent{
+        .accountId = 1001,
         .side = Side::Buy,
         .price = 100,
         .quantity = 100001
     };
 
     EXPECT_EQ(
-        risk.check(&order),
+        risk.check(intent),
         RiskResult::MaxOrderQuantityExceeded);
 }
 
@@ -69,16 +72,15 @@ TEST(RiskManagerTest, RejectTooLargeOrderValue)
 {
     RiskManager risk;
 
-    Order order{
-        .id = 1,
-        .account_id = 1,
+    const OrderIntent intent{
+        .accountId = 1001,
         .side = Side::Buy,
-        .price = 100000,
+        .price = 100001,
         .quantity = 101
     };
 
     EXPECT_EQ(
-        risk.check(&order),
+        risk.check(intent),
         RiskResult::MaxOrderValueExceeded);
 }
 
@@ -86,37 +88,27 @@ TEST(RiskManagerTest, RejectPositionLimit)
 {
     RiskManager risk;
 
-    Order acceptedOrder{
-        .id = 1,
-        .account_id = 1,
+    const OrderIntent acceptedIntent{
+        .accountId = 1001,
         .side = Side::Buy,
         .price = 100,
-        .quantity = 450
+        .quantity = 400
     };
 
-    EXPECT_EQ(
-        risk.check(&acceptedOrder),
+    ASSERT_EQ(
+        risk.check(acceptedIntent),
         RiskResult::Accepted);
 
-    risk.onAccepted(&acceptedOrder);
+    risk.onAccepted(acceptedIntent);
 
-    Order nextOrder{
-        .id = 2,
-        .account_id = 1,
+    const OrderIntent nextIntent{
+        .accountId = 1001,
         .side = Side::Buy,
         .price = 100,
-        .quantity = 100
+        .quantity = 101
     };
 
     EXPECT_EQ(
-        risk.check(&nextOrder),
+        risk.check(nextIntent),
         RiskResult::MaxPositionExceeded);
-}
-TEST(RiskManagerTest, RejectNullOrder)
-{
-    RiskManager risk;
-
-    EXPECT_EQ(
-        risk.check(nullptr),
-        RiskResult::InvalidQuantity);
 }

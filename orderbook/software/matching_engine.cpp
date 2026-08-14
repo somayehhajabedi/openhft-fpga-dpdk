@@ -1,7 +1,4 @@
-#include <iostream>
 #include "matching_engine.hpp"
-
-
 
 MatchingEngine::MatchingEngine(
     EventDispatcher& dispatcher)
@@ -12,76 +9,52 @@ MatchingEngine::MatchingEngine(
 }
 
 
-
-bool MatchingEngine::process(
-    const MarketDataEvent& event)
+bool MatchingEngine::submitOrder(
+    AccountId accountId,
+    Side side,
+    Price price,
+    Quantity quantity)
 {
-    switch (event.type)
+    Order* order =
+        orderPool_.acquire();
+
+    if (order == nullptr)
     {
-        case MarketDataEventType::CancelOrder:
-        {
-            const OrderUpdateResult result =
-                book_.reduceOrder(
-                    event.orderId,
-                    event.quantity);
-
-            releaseIfOwned(result.removed_order);
-            return result.success;
-        }
-
-        case MarketDataEventType::DeleteOrder:
-        {
-            Order* removedOrder =
-                book_.cancelOrder(event.orderId);
-
-            releaseIfOwned(removedOrder);
-            return removedOrder != nullptr;
-        }
-
-        case MarketDataEventType::ExecuteOrder:
-        {
-            const OrderUpdateResult result =
-                book_.executeOrder(
-                    event.orderId,
-                    event.quantity);
-
-            releaseIfOwned(result.removed_order);
-            return result.success;
-        }
-
-        case MarketDataEventType::AddOrder:
-        {
-            Order* order = orderPool_.acquire();
-
-            if (order == nullptr)
-            {
-                return false;
-            }
-
-            order->id = event.orderId;
-            order->account_id = event.accountId;
-            order->side = event.side;
-            order->price = event.price;
-            order->quantity = event.quantity;
-
-            order->level = nullptr;
-            order->prev = nullptr;
-            order->next = nullptr;
-
-            process(order);
-
-            return true;
-        }
-
-
+        return false;
     }
 
-    return false;
+    order->id =
+        sequencer_.next();
+
+    order->account_id =
+        accountId;
+
+    order->side =
+        side;
+
+    order->price =
+        price;
+
+    order->quantity =
+        quantity;
+
+    order->level = nullptr;
+    order->prev = nullptr;
+    order->next = nullptr;
+
+    process(order);
+
+    return true;
 }
 
 void MatchingEngine::process(
     Order* order)
 {
+    if (order == nullptr)
+    {
+        return;
+    }
+
     if (canCross(order))
     {
         executeTrade(order);
@@ -92,24 +65,31 @@ void MatchingEngine::process(
     }
 }
 
-bool MatchingEngine::canCross(const Order* order) const
+bool MatchingEngine::canCross(
+    const Order* order) const
 {
     if (order->side == Side::Buy)
     {
-        const PriceLevel* best_ask = book_.bestAsk();
+        const PriceLevel* bestAsk =
+            book_.bestAsk();
 
-        return best_ask && order->price >= best_ask->price;
+        return bestAsk != nullptr &&
+               order->price >= bestAsk->price;
     }
 
-    const PriceLevel* best_bid = book_.bestBid();
+    const PriceLevel* bestBid =
+        book_.bestBid();
 
-    return best_bid && order->price <= best_bid->price;
+    return bestBid != nullptr &&
+           order->price <= bestBid->price;
 }
 
 void MatchingEngine::executeTrade(
     Order* incoming)
 {
-    while (incoming->quantity > 0 && canCross(incoming))
+    while (
+        incoming->quantity > 0 &&
+        canCross(incoming))
     {
         if (!matchOne(incoming))
         {
@@ -127,77 +107,105 @@ void MatchingEngine::executeTrade(
     }
 }
 
-bool MatchingEngine::matchOne(Order* incoming)
+bool MatchingEngine::matchOne(
+    Order* incoming)
 {
-    const PriceLevel* opposite_level =
-        incoming->side == Side::Buy ? book_.bestAsk() : book_.bestBid();
+    const PriceLevel* oppositeLevel =
+        incoming->side == Side::Buy
+            ? book_.bestAsk()
+            : book_.bestBid();
 
-    if (!opposite_level || !opposite_level->front())
+    if (oppositeLevel == nullptr ||
+        oppositeLevel->front() == nullptr)
+    {
         return false;
+    }
 
-    Order* resting = opposite_level->front();
+    Order* resting =
+        oppositeLevel->front();
 
-    Quantity traded_quantity =
+    const Quantity tradedQuantity =
         incoming->quantity < resting->quantity
             ? incoming->quantity
             : resting->quantity;
 
-    [[maybe_unused]] Trade trade = createTrade(incoming, resting, traded_quantity);
+    const Trade trade =
+        createTrade(
+            incoming,
+            resting,
+            tradedQuantity);
 
     dispatcher_.publish(trade);
 
-    /*std::cout << "TRADE: "
-          << "BUY=" << trade.buy_order_id
-          << " SELL=" << trade.sell_order_id
-          << " PRICE=" << trade.price
-          << " QTY=" << trade.quantity
-          << std::endl;*/
+    incoming->quantity -=
+        tradedQuantity;
 
-    incoming->quantity -= traded_quantity;
-    resting->quantity -= traded_quantity;
+    resting->quantity -=
+        tradedQuantity;
 
-    if (resting->level)
-        resting->level->total_quantity -= traded_quantity;
+    if (resting->level != nullptr)
+    {
+        resting->level->total_quantity -=
+            tradedQuantity;
+    }
 
     if (resting->quantity == 0)
     {
         Order* removedOrder =
-            book_.cancelOrder(resting->id);
+            book_.cancelOrder(
+                resting->id);
 
-        releaseIfOwned(removedOrder);
+        releaseIfOwned(
+            removedOrder);
     }
 
-    return traded_quantity > 0;
+    return tradedQuantity > 0;
 }
 
-
-Trade MatchingEngine::createTrade(const Order* incoming,
-                                  const Order* resting,
-                                  Quantity traded_quantity)
+Trade MatchingEngine::createTrade(
+    const Order* incoming,
+    const Order* resting,
+    Quantity tradedQuantity)
 {
     Trade trade{};
 
-    if (incoming->side == Side::Buy)       
+    if (incoming->side == Side::Buy)
     {
-       trade.buy_order_id = incoming->id;
-       trade.sell_order_id = resting->id;
+        trade.buy_order_id =
+            incoming->id;
 
-       trade.buy_account_id = incoming->account_id;
-       trade.sell_account_id = resting->account_id;
-    }   
+        trade.sell_order_id =
+            resting->id;
+
+        trade.buy_account_id =
+            incoming->account_id;
+
+        trade.sell_account_id =
+            resting->account_id;
+    }
     else
     {
-       trade.buy_order_id = resting->id;
-       trade.sell_order_id = incoming->id;
+        trade.buy_order_id =
+            resting->id;
 
-       trade.buy_account_id = resting->account_id;
-       trade.sell_account_id = incoming->account_id;
+        trade.sell_order_id =
+            incoming->id;
+
+        trade.buy_account_id =
+            resting->account_id;
+
+        trade.sell_account_id =
+            incoming->account_id;
     }
 
-    trade.price = resting->price;
-    trade.quantity = traded_quantity;
+    trade.price =
+        resting->price;
 
-    trade.sequence = sequencer_.next();
+    trade.quantity =
+        tradedQuantity;
+
+    trade.sequence =
+        sequencer_.next();
 
     return trade;
 }
@@ -205,9 +213,9 @@ Trade MatchingEngine::createTrade(const Order* incoming,
 void MatchingEngine::releaseIfOwned(
     Order* order)
 {
-    if (orderPool_.owns(order))
+    if (order != nullptr &&
+        orderPool_.owns(order))
     {
         orderPool_.release(order);
     }
 }
-

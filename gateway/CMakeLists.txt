@@ -2,6 +2,7 @@ add_library(
     gateway
     STATIC
         gateway.cpp
+        matching_engine_execution_sink.cpp
 )
 
 target_include_directories(

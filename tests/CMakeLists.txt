@@ -39,6 +39,10 @@ add_executable(parser_tests
     unit/common/spsc_ring_buffer_test.cpp
     unit/common/spsc_queue_metrics_test.cpp
     unit/pipeline/market_data_book_consumer_test.cpp
+    unit/strategy/simple_threshold_strategy_test.cpp
+    unit/strategy/strategy_engine_test.cpp
+    unit/strategy/market_data_strategy_consumer_test.cpp
+
 
 
 
@@ -51,7 +55,6 @@ add_executable(parser_tests
     integration/matching_engine_partial_incoming_test.cpp
     integration/matching_engine_partial_resting_test.cpp
     integration/market_data_pipeline_test.cpp
-    integration/event_based_matching_engine_pipeline_test.cpp
 )
 
 target_include_directories(
@@ -75,6 +78,7 @@ target_link_libraries(
         risk
 	platform_utils
 	market_data_pipeline
+        strategy
 )
 
 include(GoogleTest)
