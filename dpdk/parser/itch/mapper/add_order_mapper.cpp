@@ -23,5 +23,8 @@ AddOrder AddOrderMapper::fromWire(
     order.isBuy =
         AddOrderParser::buySellIndicator(message) == 'B';
 
+    order.symbol =
+    AddOrderParser::stock(message);
+
     return order;
 }

@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
+
+#include "orderbook/software/common/types.hpp"
 
 struct AddOrder
 {
@@ -15,7 +16,7 @@ struct AddOrder
 
     std::uint32_t shares;
 
-    std::string symbol;
+    Symbol symbol{};
 
     std::uint32_t price;
 };

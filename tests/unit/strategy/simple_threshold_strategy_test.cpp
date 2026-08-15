@@ -21,6 +21,10 @@ TEST(
         .newOrderId = 0,
         .accountId = 0,
         .side = Side::Sell,
+        .symbol = {
+             'A', 'A', 'P', 'L',
+             ' ', ' ', ' ', ' '
+        },
         .price = 99,
         .quantity = 50
     };
@@ -32,6 +36,7 @@ TEST(
 
     EXPECT_EQ(intent->accountId, Account);
     EXPECT_EQ(intent->side, Side::Buy);
+    EXPECT_EQ(intent->symbol, event.symbol);
     EXPECT_EQ(intent->price, 99);
     EXPECT_EQ(intent->quantity, QuantityToBuy);
 }

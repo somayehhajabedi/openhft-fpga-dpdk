@@ -33,7 +33,10 @@ SimpleThresholdStrategy::onMarketData(
     return OrderIntent{
         .accountId = accountId_,
         .side = Side::Buy,
+        .symbol = event.symbol,
         .price = event.price,
         .quantity = quantity_
     };
+
+
 }

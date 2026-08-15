@@ -1,5 +1,19 @@
 # OpenHFT-FPGA-DPDK
 
+⚠️ This repository is publicly visible for portfolio, educational, and interview
+demonstration purposes only.
+
+Copyright © 2026 Somayeh Hajabedi.
+All Rights Reserved.
+
+No permission is granted to use this code in commercial or non-commercial
+projects without explicit written permission.
+
+
+
+
+# OpenHFT-FPGA-DPDK
+
 A modular low-latency trading platform implemented in modern C++17, focused on high-performance market data processing, DPDK-based packet processing, risk management, automated testing, and performance optimization.
 
 **Status:** 🚧 Active Development

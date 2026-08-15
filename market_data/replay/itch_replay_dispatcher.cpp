@@ -51,21 +51,24 @@ bool ItchReplayDispatcher::dispatch(
                 AddOrderMapper::fromWire(wire);
 
             const MarketDataEvent event{
-                .type = MarketDataEventType::AddOrder,
-                .orderId = order.orderReferenceNumber,
+  		.type = MarketDataEventType::AddOrder,
+    		.orderId = order.orderReferenceNumber,
                 .newOrderId = 0,
                 .accountId = 0,
                 .side =
                     order.isBuy
-                        ? Side::Buy
-                        : Side::Sell,
+                    ? Side::Buy
+                    : Side::Sell,
+                .symbol = order.symbol,
                 .price =
-                    static_cast<Price>(
-                        order.price),
+                static_cast<Price>(
+                     order.price),
                 .quantity =
-                    static_cast<Quantity>(
-                        order.shares)
+                static_cast<Quantity>(
+                order.shares)
             };
+            
+
 
 	    return sink_.submit(event);
 

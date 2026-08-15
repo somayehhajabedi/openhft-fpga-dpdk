@@ -48,8 +48,15 @@ public:
         const AddOrderWireMessage* message);
 
      static std::uint64_t orderReferenceNumber(
-    const AddOrderWireMessage* message);
+        const AddOrderWireMessage* message);
 
-static char buySellIndicator(
-    const AddOrderWireMessage* message);
+    static char buySellIndicator(
+        const AddOrderWireMessage* message);
+
+    static Symbol stock(
+        const AddOrderWireMessage* message);
+
+
+
+
 };

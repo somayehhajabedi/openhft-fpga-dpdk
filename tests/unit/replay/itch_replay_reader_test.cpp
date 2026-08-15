@@ -1,183 +1,310 @@
+
 #include <gtest/gtest.h>
 
 #include <arpa/inet.h>
-#include <cstdint>
-#include <cstdio>
-#include <fstream>
-#include <string>
-#include <vector>
+#include <endian.h>
 
-#include "market_data/replay/itch_replay_reader.hpp"
+#include <cstdint>
+
+#include "dpdk/parser/itch/messages/add_order.hpp"
+#include "dpdk/parser/itch/messages/order_cancel.hpp"
+#include "dpdk/parser/itch/messages/order_delete.hpp"
+#include "dpdk/parser/itch/messages/order_executed.hpp"
+#include "dpdk/parser/itch/messages/order_replace.hpp"
+
+#include "market_data/replay/itch_replay_dispatcher.hpp"
+#include "pipeline/market_data_event_sink.hpp"
 
 namespace
 {
 
-void writeMessage(
-    std::ofstream& stream,
-    const std::vector<std::uint8_t>& payload)
+class RecordingMarketDataEventSink final
+    : public MarketDataEventSink
 {
-    const auto networkLength =
-        htons(static_cast<std::uint16_t>(payload.size()));
+public:
+    bool submit(
+        const MarketDataEvent& event) override
+    {
+        lastEvent = event;
+        submitted = true;
 
-    stream.write(
-        reinterpret_cast<const char*>(&networkLength),
-        sizeof(networkLength));
+        return true;
+    }
 
-    stream.write(
-        reinterpret_cast<const char*>(payload.data()),
-        static_cast<std::streamsize>(payload.size()));
-}
+    MarketDataEvent lastEvent{};
+    bool submitted{false};
+};
 
 } // namespace
 
-TEST(ItchReplayReaderTest, OpensValidFile)
+TEST(
+    ItchReplayDispatcherTest,
+    RejectsNullMessage)
 {
-    const std::string path = "itch_replay_open_test.bin";
+    RecordingMarketDataEventSink sink;
 
-    {
-        std::ofstream stream(path, std::ios::binary);
-        ASSERT_TRUE(stream.is_open());
-    }
+    ItchReplayDispatcher dispatcher(sink);
 
-    ItchReplayReader reader(path);
+    EXPECT_FALSE(
+        dispatcher.dispatch(nullptr, 0));
 
-    EXPECT_TRUE(reader.isOpen());
-
-    std::remove(path.c_str());
+    EXPECT_FALSE(sink.submitted);
 }
 
-TEST(ItchReplayReaderTest, FailsToOpenMissingFile)
+TEST(
+    ItchReplayDispatcherTest,
+    RejectsEmptyMessage)
 {
-    const std::string path = "missing_itch_replay_file.bin";
+    RecordingMarketDataEventSink sink;
 
-    std::remove(path.c_str());
+    ItchReplayDispatcher dispatcher(sink);
 
-    ItchReplayReader reader(path);
+    const std::uint8_t dummy = 0;
 
-    EXPECT_FALSE(reader.isOpen());
+    EXPECT_FALSE(
+        dispatcher.dispatch(
+            &dummy,
+            0));
+
+    EXPECT_FALSE(sink.submitted);
 }
 
-TEST(ItchReplayReaderTest, ReadsTwoMessages)
+TEST(
+    ItchReplayDispatcherTest,
+    RejectsUnknownMessageType)
 {
-    const std::string path = "itch_replay_two_messages.bin";
+    RecordingMarketDataEventSink sink;
 
-    const std::vector<std::uint8_t> first{
-        'A', 0x01, 0x02
-    };
+    ItchReplayDispatcher dispatcher(sink);
 
-    const std::vector<std::uint8_t> second{
-        'D', 0x03
-    };
+    const std::uint8_t message[]{'?'};
 
-    {
-        std::ofstream stream(path, std::ios::binary);
-        ASSERT_TRUE(stream.is_open());
+    EXPECT_FALSE(
+        dispatcher.dispatch(
+            message,
+            sizeof(message)));
 
-        writeMessage(stream, first);
-        writeMessage(stream, second);
-    }
-
-    ItchReplayReader reader(path);
-
-    ASSERT_TRUE(reader.isOpen());
-
-    std::vector<std::uint8_t> message;
-
-    ASSERT_TRUE(reader.readNext(message));
-    EXPECT_EQ(message, first);
-
-    ASSERT_TRUE(reader.readNext(message));
-    EXPECT_EQ(message, second);
-
-    EXPECT_FALSE(reader.readNext(message));
-
-    std::remove(path.c_str());
+    EXPECT_FALSE(sink.submitted);
 }
 
-TEST(ItchReplayReaderTest, RejectsTruncatedLengthPrefix)
+TEST(
+    ItchReplayDispatcherTest,
+    DispatchesAddOrder)
 {
-    const std::string path =
-        "itch_replay_truncated_length.bin";
+    RecordingMarketDataEventSink sink;
 
-    {
-        std::ofstream stream(path, std::ios::binary);
-        ASSERT_TRUE(stream.is_open());
+    ItchReplayDispatcher dispatcher(sink);
 
-        const std::uint8_t oneByte = 0x00;
+    constexpr std::uint64_t OrderId = 5001;
+    constexpr std::uint32_t Quantity = 1000;
+    constexpr std::uint32_t PriceValue = 12500;
 
-        stream.write(
-            reinterpret_cast<const char*>(&oneByte),
-            sizeof(oneByte));
-    }
+    AddOrderWireMessage message{};
 
-    ItchReplayReader reader(path);
+    message.message_type = 'A';
+    message.order_reference_number =
+        htobe64(OrderId);
+    message.buy_sell_indicator = 'B';
+    message.shares =
+        htonl(Quantity);
+    message.price =
+        htonl(PriceValue);
 
-    std::vector<std::uint8_t> message{
-        0xFF
-    };
+    ASSERT_TRUE(
+        dispatcher.dispatch(
+            reinterpret_cast<
+                const std::uint8_t*>(&message),
+            sizeof(message)));
 
-    EXPECT_FALSE(reader.readNext(message));
+    ASSERT_TRUE(sink.submitted);
 
-    std::remove(path.c_str());
+    EXPECT_EQ(
+        sink.lastEvent.type,
+        MarketDataEventType::AddOrder);
+
+    EXPECT_EQ(
+        sink.lastEvent.orderId,
+        OrderId);
+
+    EXPECT_EQ(
+        sink.lastEvent.side,
+        Side::Buy);
+
+    EXPECT_EQ(
+        sink.lastEvent.quantity,
+        Quantity);
+
+    EXPECT_EQ(
+        sink.lastEvent.price,
+        PriceValue);
 }
 
-TEST(ItchReplayReaderTest, RejectsTruncatedPayload)
+TEST(
+    ItchReplayDispatcherTest,
+    DispatchesOrderCancel)
 {
-    const std::string path =
-        "itch_replay_truncated_payload.bin";
+    RecordingMarketDataEventSink sink;
 
-    {
-        std::ofstream stream(path, std::ios::binary);
-        ASSERT_TRUE(stream.is_open());
+    ItchReplayDispatcher dispatcher(sink);
 
-        const std::uint16_t networkLength = htons(5);
+    constexpr std::uint64_t OrderId = 5002;
+    constexpr std::uint32_t CancelledQuantity = 300;
 
-        stream.write(
-            reinterpret_cast<const char*>(&networkLength),
-            sizeof(networkLength));
+    OrderCancelWireMessage message{};
 
-        const std::uint8_t incompletePayload[2]{
-            'A', 0x01
-        };
+    message.message_type = 'X';
+    message.order_reference_number =
+        htobe64(OrderId);
+    message.cancelled_shares =
+        htonl(CancelledQuantity);
 
-        stream.write(
-            reinterpret_cast<const char*>(incompletePayload),
-            sizeof(incompletePayload));
-    }
+    ASSERT_TRUE(
+        dispatcher.dispatch(
+            reinterpret_cast<
+                const std::uint8_t*>(&message),
+            sizeof(message)));
 
-    ItchReplayReader reader(path);
+    ASSERT_TRUE(sink.submitted);
 
-    std::vector<std::uint8_t> message{
-        0xFF
-    };
+    EXPECT_EQ(
+        sink.lastEvent.type,
+        MarketDataEventType::CancelOrder);
 
-    EXPECT_FALSE(reader.readNext(message));
-    EXPECT_TRUE(message.empty());
+    EXPECT_EQ(
+        sink.lastEvent.orderId,
+        OrderId);
 
-    std::remove(path.c_str());
+    EXPECT_EQ(
+        sink.lastEvent.quantity,
+        CancelledQuantity);
 }
 
-TEST(ItchReplayReaderTest, RejectsZeroLengthMessage)
+TEST(
+    ItchReplayDispatcherTest,
+    DispatchesOrderDelete)
 {
-    const std::string path =
-        "itch_replay_zero_length.bin";
+    RecordingMarketDataEventSink sink;
 
-    {
-        std::ofstream stream(path, std::ios::binary);
-        ASSERT_TRUE(stream.is_open());
+    ItchReplayDispatcher dispatcher(sink);
 
-        const std::uint16_t networkLength = htons(0);
+    constexpr std::uint64_t OrderId = 5003;
 
-        stream.write(
-            reinterpret_cast<const char*>(&networkLength),
-            sizeof(networkLength));
-    }
+    OrderDeleteWireMessage message{};
 
-    ItchReplayReader reader(path);
+    message.message_type = 'D';
+    message.order_reference_number =
+        htobe64(OrderId);
 
-    std::vector<std::uint8_t> message;
+    ASSERT_TRUE(
+        dispatcher.dispatch(
+            reinterpret_cast<
+                const std::uint8_t*>(&message),
+            sizeof(message)));
 
-    EXPECT_FALSE(reader.readNext(message));
+    ASSERT_TRUE(sink.submitted);
 
-    std::remove(path.c_str());
+    EXPECT_EQ(
+        sink.lastEvent.type,
+        MarketDataEventType::DeleteOrder);
+
+    EXPECT_EQ(
+        sink.lastEvent.orderId,
+        OrderId);
+}
+
+TEST(
+    ItchReplayDispatcherTest,
+    DispatchesOrderExecuted)
+{
+    RecordingMarketDataEventSink sink;
+
+    ItchReplayDispatcher dispatcher(sink);
+
+    constexpr std::uint64_t OrderId = 5004;
+    constexpr std::uint32_t ExecutedQuantity = 250;
+    constexpr std::uint64_t MatchNumber = 91001;
+
+    OrderExecutedWireMessage message{};
+
+    message.message_type = 'E';
+    message.order_reference_number =
+        htobe64(OrderId);
+    message.executed_shares =
+        htonl(ExecutedQuantity);
+    message.match_number =
+        htobe64(MatchNumber);
+
+    ASSERT_TRUE(
+        dispatcher.dispatch(
+            reinterpret_cast<
+                const std::uint8_t*>(&message),
+            sizeof(message)));
+
+    ASSERT_TRUE(sink.submitted);
+
+    EXPECT_EQ(
+        sink.lastEvent.type,
+        MarketDataEventType::ExecuteOrder);
+
+    EXPECT_EQ(
+        sink.lastEvent.orderId,
+        OrderId);
+
+    EXPECT_EQ(
+        sink.lastEvent.quantity,
+        ExecutedQuantity);
+}
+
+TEST(
+    ItchReplayDispatcherTest,
+    DispatchesOrderReplace)
+{
+    RecordingMarketDataEventSink sink;
+
+    ItchReplayDispatcher dispatcher(sink);
+
+    constexpr std::uint64_t OriginalOrderId = 5005;
+    constexpr std::uint64_t NewOrderId = 6005;
+    constexpr std::uint32_t NewQuantity = 400;
+    constexpr std::uint32_t NewPrice = 13000;
+
+    OrderReplaceWireMessage message{};
+
+    message.message_type = 'U';
+    message.original_order_reference =
+        htobe64(OriginalOrderId);
+    message.new_order_reference =
+        htobe64(NewOrderId);
+    message.shares =
+        htonl(NewQuantity);
+    message.price =
+        htonl(NewPrice);
+
+    ASSERT_TRUE(
+        dispatcher.dispatch(
+            reinterpret_cast<
+                const std::uint8_t*>(&message),
+            sizeof(message)));
+
+    ASSERT_TRUE(sink.submitted);
+
+    EXPECT_EQ(
+        sink.lastEvent.type,
+        MarketDataEventType::ReplaceOrder);
+
+    EXPECT_EQ(
+        sink.lastEvent.orderId,
+        OriginalOrderId);
+
+    EXPECT_EQ(
+        sink.lastEvent.newOrderId,
+        NewOrderId);
+
+    EXPECT_EQ(
+        sink.lastEvent.quantity,
+        NewQuantity);
+
+    EXPECT_EQ(
+        sink.lastEvent.price,
+        NewPrice);
 }

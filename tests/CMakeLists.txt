@@ -42,7 +42,10 @@ add_executable(parser_tests
     unit/strategy/simple_threshold_strategy_test.cpp
     unit/strategy/strategy_engine_test.cpp
     unit/strategy/market_data_strategy_consumer_test.cpp
-
+    unit/execution/ouch_encoder_test.cpp
+    unit/execution/ouch_execution_sink_test.cpp
+    unit/execution/ouch_decoder_test.cpp
+    unit/execution/ouch_response_dispatcher_test.cpp
 
 
 
@@ -55,6 +58,10 @@ add_executable(parser_tests
     integration/matching_engine_partial_incoming_test.cpp
     integration/matching_engine_partial_resting_test.cpp
     integration/market_data_pipeline_test.cpp
+    integration/ouch_gateway_pipeline_test.cpp
+    integration/tcp_ouch_transport_test.cpp
+
+
 )
 
 target_include_directories(
@@ -79,6 +86,7 @@ target_link_libraries(
 	platform_utils
 	market_data_pipeline
         strategy
+	ouch
 )
 
 include(GoogleTest)

@@ -15,7 +15,7 @@
  * 
  * 
 Event          Fields
-AddOrder	   orderId, accountId, side, price, quantity
+AddOrder	   orderId, accountId, side, symbol ,price, quantity
 CancelOrder	   orderId, quantity
 DeleteOrder	   orderId
 ExecuteOrder   orderId, quantity
@@ -47,6 +47,8 @@ struct MarketDataEvent
     AccountId accountId{0};
 
     Side side{Side::Buy};
+
+    Symbol symbol{};
 
     Price price{0};
 

@@ -74,10 +74,10 @@ AddOrder AddOrderParser::toModel(
 }
     */
 
-    std::uint64_t AddOrderParser::orderReferenceNumber(
+std::uint64_t AddOrderParser::orderReferenceNumber(
     const AddOrderWireMessage* message)
 {
-    return message
+      return message
         ? be64toh(message->order_reference_number)
         : 0;
 }
@@ -88,4 +88,20 @@ char AddOrderParser::buySellIndicator(
     return message
         ? message->buy_sell_indicator
         : '\0';
+}
+
+Symbol AddOrderParser::stock(
+    const AddOrderWireMessage* message)
+{
+    Symbol symbol{};
+
+    for (std::size_t index = 0;
+         index < symbol.size();
+         ++index)
+    {
+        symbol[index] =
+            message->stock[index];
+    }
+
+    return symbol;
 }
