@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include "order.hpp"
@@ -6,6 +7,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <unordered_map>
 
 
@@ -25,31 +27,59 @@ public:
     Order* cancelOrder(OrderId id);
 
     OrderUpdateResult reduceOrder(
-    OrderId id,
-    Quantity cancelledQuantity);
+        OrderId id,
+        Quantity cancelledQuantity);
 
     OrderUpdateResult executeOrder(
-    OrderId id,
-    Quantity executedQuantity);
-    
+        OrderId id,
+        Quantity executedQuantity);
+
     bool replaceOrder(
         OrderId originalOrderId,
         OrderId newOrderId,
         Quantity newQuantity,
-        Price newPrice);    
+        Price newPrice);
 
     const PriceLevel* bestBid() const;
     const PriceLevel* bestAsk() const;
 
 
 private:
-    std::size_t priceToIndex(Price price) const;
-    PriceLevel& getLevel(Side side, Price price);
+    static constexpr std::size_t BitsPerBitmapWord = 64;
+
+    static constexpr std::size_t BitmapWordCount =
+        (MaxPriceLevels + BitsPerBitmapWord - 1) /
+        BitsPerBitmapWord;
+
+    std::size_t priceToIndex(
+        Price price) const;
+
+    PriceLevel& getLevel(
+        Side side,
+        Price price);
+
     void refreshBestBid();
     void refreshBestAsk();
 
+    void setLevelActive(
+        std::array<std::uint64_t, BitmapWordCount>& bitmap,
+        Price price);
+
+    void clearLevelActive(
+        std::array<std::uint64_t, BitmapWordCount>& bitmap,
+        Price price);
+
+
     std::array<PriceLevel, MaxPriceLevels> bid_levels_;
     std::array<PriceLevel, MaxPriceLevels> ask_levels_;
+
+    std::array<
+        std::uint64_t,
+        BitmapWordCount> bid_level_bitmap_{};
+
+    std::array<
+        std::uint64_t,
+        BitmapWordCount> ask_level_bitmap_{};
 
     Price best_bid_ = 0;
     Price best_ask_ = 0;
