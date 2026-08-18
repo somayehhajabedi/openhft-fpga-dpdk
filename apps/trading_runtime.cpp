@@ -1,3 +1,9 @@
+#include "execution/ouch/ouch_execution_sink.hpp"
+#include "execution/ouch/ouch_transport.hpp"
+
+#include "gateway/gateway.hpp"
+#include "gateway/gateway_order_intent_sink.hpp"
+
 #include "market_data/replay/itch_replay_dispatcher.hpp"
 #include "market_data/replay/itch_replay_reader.hpp"
 
@@ -6,36 +12,73 @@
 #include "pipeline/market_data_book_consumer.hpp"
 #include "pipeline/market_data_pipeline.hpp"
 
+#include "risk/risk_manager.hpp"
+
 #include "strategy/market_data_strategy_consumer.hpp"
-#include "strategy/order_intent_sink.hpp"
 #include "strategy/simple_threshold_strategy.hpp"
 #include "strategy/strategy_engine.hpp"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <string>
-#include <vector>
 #include <thread>
+#include <vector>
 
 
 namespace
 {
 
-class LoggingOrderIntentSink final
-    : public OrderIntentSink
+class RecordingOuchTransport final
+    : public ouch::OuchTransport
 {
 public:
-    bool submit(
-        const OrderIntent& intent) override
+    bool send(
+        const std::uint8_t* data,
+        std::size_t length) override
     {
+        if (length > buffer_.size())
+        {
+            return false;
+        }
+
+        for (std::size_t index = 0;
+             index < length;
+             ++index)
+        {
+            buffer_[index] = data[index];
+        }
+
+        lastLength_ = length;
+        sent_ = true;
+
         std::cout
-            << "OrderIntent generated: "
-            << "price=" << intent.price
-            << " quantity=" << intent.quantity
+            << "OUCH message generated and sent to transport. "
+            << "bytes=" << length
             << '\n';
 
         return true;
     }
+
+    [[nodiscard]]
+    bool sent() const noexcept
+    {
+        return sent_;
+    }
+
+    [[nodiscard]]
+    std::size_t lastLength() const noexcept
+    {
+        return lastLength_;
+    }
+
+private:
+    std::array<std::uint8_t, 128> buffer_{};
+
+    std::size_t lastLength_{0};
+
+    bool sent_{false};
 };
 
 } // namespace
@@ -62,13 +105,14 @@ int main(
     ArrayOrderBook marketBook;
 
     //
-    // Writes market-data events into the book.
+    // Writes market-data events into marketBook.
     //
     MarketDataBookConsumer bookConsumer(
         marketBook);
 
     //
-    // Reads the same book through MarketView.
+    // Strategy reads the same marketBook
+    // through the read-only MarketView interface.
     //
     SimpleThresholdStrategy strategy(
         marketBook,
@@ -79,8 +123,30 @@ int main(
     StrategyEngine strategyEngine(
         strategy);
 
-    LoggingOrderIntentSink intentSink;
+    //
+    // Execution path.
+    //
+    RecordingOuchTransport transport;
 
+    ouch::OuchExecutionSink executionSink(
+        transport);
+
+    RiskManager riskManager;
+
+    Gateway gateway(
+        riskManager,
+        executionSink);
+
+    GatewayOrderIntentSink intentSink(
+        gateway);
+
+    //
+    // Market-data consumer:
+    //
+    // 1. update book
+    // 2. run strategy
+    // 3. forward generated intent to Gateway
+    //
     MarketDataStrategyConsumer consumer(
         bookConsumer,
         strategyEngine,
@@ -93,7 +159,7 @@ int main(
         consumer);
 
     //
-    // Replay source.
+    // Replay input.
     //
     ItchReplayReader reader(
         replayFile);
@@ -109,8 +175,7 @@ int main(
     }
 
     //
-    // Converts raw ITCH messages into MarketDataEvent
-    // and submits them to the pipeline.
+    // Raw ITCH -> MarketDataEvent -> pipeline.
     //
     ItchReplayDispatcher replayDispatcher(
         pipeline);
@@ -131,10 +196,6 @@ int main(
         }
     }
 
-    //
-    // Wait until the consumer thread has processed
-    // all successfully submitted events.
-    //
     while (pipeline.processedCount() <
            replayedMessages)
     {
@@ -167,6 +228,15 @@ int main(
         std::cout
             << "Best Ask: "
             << bestAsk->price
+            << '\n';
+    }
+
+    if (transport.sent())
+    {
+        std::cout
+            << "Execution path reached OUCH transport. "
+            << "last message bytes="
+            << transport.lastLength()
             << '\n';
     }
 

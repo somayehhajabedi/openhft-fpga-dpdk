@@ -9,23 +9,32 @@ Gateway::Gateway(
 {
 }
 
-RiskResult Gateway::submit(
+GatewayResult Gateway::submit(
     const OrderIntent& intent)
 {
-    const RiskResult result =
+    const RiskResult riskResult =
         riskManager_.check(intent);
 
-    if (result != RiskResult::Accepted)
+    if (riskResult != RiskResult::Accepted)
     {
-        return result;
+        return GatewayResult{
+            .riskResult = riskResult,
+            .executionSucceeded = false
+        };
     }
 
     if (!executionSink_.submit(intent))
     {
-        return result;
+        return GatewayResult{
+            .riskResult = RiskResult::Accepted,
+            .executionSucceeded = false
+        };
     }
 
     riskManager_.onAccepted(intent);
 
-    return RiskResult::Accepted;
+    return GatewayResult{
+        .riskResult = RiskResult::Accepted,
+        .executionSucceeded = true
+    };
 }

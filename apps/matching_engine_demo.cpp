@@ -9,7 +9,6 @@
 #include "orderbook/software/matching_engine.hpp"
 #include "position/position_manager.hpp"
 #include "risk/risk_manager.hpp"
-#include "risk/risk_result.hpp"
 
 int main()
 {
@@ -23,9 +22,11 @@ int main()
     dispatcher.addListener(&tradePublisher);
     dispatcher.addListener(&positionManager);
 
-    MatchingEngine engine(dispatcher);
+    MatchingEngine engine(
+        dispatcher);
 
-    MatchingEngineExecutionSink executionSink(engine);
+    MatchingEngineExecutionSink executionSink(
+        engine);
 
     RiskManager riskManager;
 
@@ -55,25 +56,30 @@ int main()
     };
 
     [[maybe_unused]]
-    const RiskResult sell1Result =
-        gateway.submit(sell1);
+    const GatewayResult sell1Result =
+        gateway.submit(
+            sell1);
 
     [[maybe_unused]]
-    const RiskResult sell2Result =
-        gateway.submit(sell2);
+    const GatewayResult sell2Result =
+        gateway.submit(
+            sell2);
 
     [[maybe_unused]]
-    const RiskResult buyResult =
-        gateway.submit(buy);
+    const GatewayResult buyResult =
+        gateway.submit(
+            buy);
 
     std::cout
         << "Buyer Position: "
-        << positionManager.position(1001)
+        << positionManager.position(
+               1001)
         << '\n';
 
     std::cout
         << "Seller Position: "
-        << positionManager.position(2001)
+        << positionManager.position(
+               2001)
         << '\n';
 
     return 0;

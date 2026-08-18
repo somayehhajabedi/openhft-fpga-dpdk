@@ -71,9 +71,18 @@ TEST(
         .quantity = 100
     };
 
+    const GatewayResult result =
+        gateway.submit(intent);
+
+    EXPECT_TRUE(
+        result.accepted());
+
     EXPECT_EQ(
-        gateway.submit(intent),
+        result.riskResult,
         RiskResult::Accepted);
+
+    EXPECT_TRUE(
+        result.executionSucceeded);
 
     ASSERT_TRUE(
         transport.sent);
@@ -133,9 +142,18 @@ TEST(
         .quantity = 100
     };
 
+    const GatewayResult result =
+        gateway.submit(intent);
+
+    EXPECT_FALSE(
+        result.accepted());
+
     EXPECT_EQ(
-        gateway.submit(intent),
+        result.riskResult,
         RiskResult::InvalidPrice);
+
+    EXPECT_FALSE(
+        result.executionSucceeded);
 
     EXPECT_FALSE(
         transport.sent);

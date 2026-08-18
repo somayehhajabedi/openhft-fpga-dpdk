@@ -2,6 +2,7 @@ add_library(
     gateway
     STATIC
         gateway.cpp
+        gateway_order_intent_sink.cpp
         matching_engine_execution_sink.cpp
 )
 
@@ -17,4 +18,5 @@ target_link_libraries(
         matching_engine_core
         risk
         itch_parser
+        strategy
 )

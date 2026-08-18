@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "execution/ouch/ouch_decoder.hpp"
+#include "execution/ouch/ouch_encoder.hpp"
 
 #include <array>
 #include <cstdint>
@@ -332,4 +333,92 @@ TEST(
         canceled->reason,
         'U');
 }
+TEST(
+    OuchDecoderTest,
+    DecodesEnterOrderProducedByEncoder)
+{
+    ouch::EnterOrder order{};
 
+    order.userRefNum = 1234;
+    order.side = Side::Buy;
+    order.quantity = 50;
+
+    order.symbol = {
+        'A', 'A', 'P', 'L',
+        ' ', ' ', ' ', ' '
+    };
+
+    order.price = 99;
+
+    order.timeInForce =
+        ouch::TimeInForce::Day;
+
+    order.display =
+        ouch::Display::Visible;
+
+    order.capacity =
+        ouch::Capacity::Agency;
+
+    order.isoEligibility =
+        ouch::IsoEligibility::NotEligible;
+
+    order.crossType =
+        ouch::CrossType::ContinuousMarket;
+
+    order.appendageLength = 0;
+
+    const auto buffer =
+        ouch::OuchEncoder::encode(order);
+
+    const auto decoded =
+        ouch::OuchDecoder::decodeEnterOrder(
+            buffer.data(),
+            buffer.size());
+
+    ASSERT_TRUE(
+        decoded.has_value());
+
+    EXPECT_EQ(
+        decoded->userRefNum,
+        order.userRefNum);
+
+    EXPECT_EQ(
+        decoded->side,
+        order.side);
+
+    EXPECT_EQ(
+        decoded->quantity,
+        order.quantity);
+
+    EXPECT_EQ(
+        decoded->symbol,
+        order.symbol);
+
+    EXPECT_EQ(
+        decoded->price,
+        order.price);
+
+    EXPECT_EQ(
+        decoded->timeInForce,
+        order.timeInForce);
+
+    EXPECT_EQ(
+        decoded->display,
+        order.display);
+
+    EXPECT_EQ(
+        decoded->capacity,
+        order.capacity);
+
+    EXPECT_EQ(
+        decoded->isoEligibility,
+        order.isoEligibility);
+
+    EXPECT_EQ(
+        decoded->crossType,
+        order.crossType);
+
+    EXPECT_EQ(
+        decoded->appendageLength,
+        0);
+}

@@ -60,6 +60,7 @@ add_executable(parser_tests
     integration/market_data_pipeline_test.cpp
     integration/ouch_gateway_pipeline_test.cpp
     integration/tcp_ouch_transport_test.cpp
+    integration/exchange_ouch_handler_test.cpp
 
 
 )
@@ -87,6 +88,7 @@ target_link_libraries(
 	market_data_pipeline
         strategy
 	ouch
+	exchange
 )
 
 include(GoogleTest)
