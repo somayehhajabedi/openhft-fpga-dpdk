@@ -1,15 +1,18 @@
 #include "strategy/simple_threshold_strategy.hpp"
 
 SimpleThresholdStrategy::SimpleThresholdStrategy(
+    const MarketView& marketView,
     AccountId accountId,
     Price buyBelowPrice,
     Quantity quantity)
     :
+    marketView_(marketView),
     accountId_(accountId),
     buyBelowPrice_(buyBelowPrice),
     quantity_(quantity)
 {
 }
+
 
 std::optional<OrderIntent>
 SimpleThresholdStrategy::onMarketData(
@@ -25,7 +28,15 @@ SimpleThresholdStrategy::onMarketData(
         return std::nullopt;
     }
 
-    if (event.price > buyBelowPrice_)
+    const PriceLevel* bestAsk =
+        marketView_.bestAsk();
+
+    if (bestAsk == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    if (bestAsk->price > buyBelowPrice_)
     {
         return std::nullopt;
     }
@@ -34,9 +45,7 @@ SimpleThresholdStrategy::onMarketData(
         .accountId = accountId_,
         .side = Side::Buy,
         .symbol = event.symbol,
-        .price = event.price,
+        .price = bestAsk->price,
         .quantity = quantity_
     };
-
-
 }

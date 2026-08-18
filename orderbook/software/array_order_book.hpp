@@ -4,6 +4,7 @@
 #include "order.hpp"
 #include "price_level.hpp"
 #include "common/types.hpp"
+#include "strategy/market_view.hpp"
 
 #include <array>
 #include <cstddef>
@@ -17,7 +18,8 @@ struct OrderUpdateResult
     Order* removed_order = nullptr;
 };
 
-class ArrayOrderBook
+class ArrayOrderBook final
+    : public MarketView
 {
 public:
     static constexpr std::size_t MaxPriceLevels = 100000;
@@ -40,8 +42,11 @@ public:
         Quantity newQuantity,
         Price newPrice);
 
-    const PriceLevel* bestBid() const;
-    const PriceLevel* bestAsk() const;
+    [[nodiscard]]
+    const PriceLevel* bestBid() const override;
+
+    [[nodiscard]]
+    const PriceLevel* bestAsk() const override;
 
 
 private:

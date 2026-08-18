@@ -17,3 +17,23 @@ target_link_libraries(
         risk
         itch_parser
 )
+add_executable(
+    trading_runtime
+    trading_runtime.cpp
+)
+
+target_include_directories(
+    trading_runtime
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(
+    trading_runtime
+    PRIVATE
+        market_data_pipeline
+        orderbook
+	strategy
+	replay
+	itch_parser
+)
