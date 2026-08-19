@@ -2,7 +2,6 @@
 
 #include <arpa/inet.h>
 #include <cerrno>
-#include <cstring>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <utility>
@@ -43,8 +42,10 @@ bool TcpOuchTransport::connect()
     }
 
     sockaddr_in address{};
+
     address.sin_family = AF_INET;
-    address.sin_port = htons(port_);
+    address.sin_port =
+        htons(port_);
 
     const int result =
         ::inet_pton(
@@ -60,7 +61,8 @@ bool TcpOuchTransport::connect()
 
     if (::connect(
             socketFd_,
-            reinterpret_cast<sockaddr*>(&address),
+            reinterpret_cast<sockaddr*>(
+                &address),
             sizeof(address)) < 0)
     {
         close();
@@ -94,12 +96,55 @@ bool TcpOuchTransport::send(
         if (sent > 0)
         {
             totalSent +=
-                static_cast<std::size_t>(sent);
+                static_cast<std::size_t>(
+                    sent);
 
             continue;
         }
 
         if (sent < 0 &&
+            errno == EINTR)
+        {
+            continue;
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+bool TcpOuchTransport::receive(
+    std::uint8_t* data,
+    std::size_t length)
+{
+    if (!isConnected() ||
+        data == nullptr)
+    {
+        return false;
+    }
+
+    std::size_t totalReceived = 0;
+
+    while (totalReceived < length)
+    {
+        const ssize_t received =
+            ::recv(
+                socketFd_,
+                data + totalReceived,
+                length - totalReceived,
+                0);
+
+        if (received > 0)
+        {
+            totalReceived +=
+                static_cast<std::size_t>(
+                    received);
+
+            continue;
+        }
+
+        if (received < 0 &&
             errno == EINTR)
         {
             continue;

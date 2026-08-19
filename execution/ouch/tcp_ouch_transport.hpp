@@ -2,6 +2,7 @@
 
 #include "execution/ouch/ouch_transport.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
@@ -34,6 +35,10 @@ public:
     bool send(
         const std::uint8_t* data,
         std::size_t length) override;
+
+    bool receive(
+        std::uint8_t* data,
+        std::size_t length);
 
     void close() noexcept;
 
