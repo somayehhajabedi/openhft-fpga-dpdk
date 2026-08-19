@@ -2,9 +2,13 @@
 
 #include "execution/ouch/ouch_decoder.hpp"
 #include "execution/ouch/ouch_encoder.hpp"
+#include "execution/ouch/accepted_encoder.hpp"
+#include "execution/ouch/executed_encoder.hpp"
+#include "execution/ouch/ouch_response_dispatcher.hpp"
 
 #include <array>
 #include <cstdint>
+#include <variant>
 
 TEST(
     OuchDecoderTest,
@@ -421,4 +425,200 @@ TEST(
     EXPECT_EQ(
         decoded->appendageLength,
         0);
+}
+
+TEST(
+    OuchDecoderTest,
+    DecodesAcceptedProducedByEncoder)
+{
+    ouch::Accepted accepted{};
+
+    accepted.timestamp = 123456789;
+    accepted.userRefNum = 42;
+    accepted.side = Side::Buy;
+    accepted.quantity = 100;
+
+    accepted.symbol = {
+        'A', 'A', 'P', 'L',
+        ' ', ' ', ' ', ' '
+    };
+
+    accepted.price = 12500;
+
+    accepted.timeInForce =
+        ouch::TimeInForce::Day;
+
+    accepted.display =
+        ouch::Display::Visible;
+
+    accepted.orderReferenceNumber = 7001;
+
+    accepted.capacity =
+        ouch::Capacity::Agency;
+
+    accepted.isoEligibility =
+        ouch::IsoEligibility::NotEligible;
+
+    accepted.crossType =
+        ouch::CrossType::ContinuousMarket;
+
+    accepted.orderState =
+        ouch::OrderState::Live;
+
+    accepted.clOrdId = {
+        'O', 'R', 'D', 'E', 'R', '0', '0',
+        '0', '0', '0', '0', '0', '0', '1'
+    };
+
+    accepted.appendageLength = 0;
+
+    const auto buffer =
+        ouch::AcceptedEncoder::encode(
+            accepted);
+
+    ASSERT_EQ(
+        buffer.size(),
+        64U);
+
+    ASSERT_EQ(
+        buffer[0],
+        static_cast<std::uint8_t>('A'));
+
+    const auto decoded =
+        ouch::OuchDecoder::decodeAccepted(
+            buffer.data(),
+            buffer.size());
+
+    ASSERT_TRUE(
+        decoded.has_value());
+
+    EXPECT_EQ(
+        decoded->timestamp,
+        accepted.timestamp);
+
+    EXPECT_EQ(
+        decoded->userRefNum,
+        accepted.userRefNum);
+
+    EXPECT_EQ(
+        decoded->side,
+        accepted.side);
+
+    EXPECT_EQ(
+        decoded->quantity,
+        accepted.quantity);
+
+    EXPECT_EQ(
+        decoded->symbol,
+        accepted.symbol);
+
+    EXPECT_EQ(
+        decoded->price,
+        accepted.price);
+
+    EXPECT_EQ(
+        decoded->timeInForce,
+        accepted.timeInForce);
+
+    EXPECT_EQ(
+        decoded->display,
+        accepted.display);
+
+    EXPECT_EQ(
+        decoded->orderReferenceNumber,
+        accepted.orderReferenceNumber);
+
+    EXPECT_EQ(
+        decoded->capacity,
+        accepted.capacity);
+
+    EXPECT_EQ(
+        decoded->isoEligibility,
+        accepted.isoEligibility);
+
+    EXPECT_EQ(
+        decoded->crossType,
+        accepted.crossType);
+
+    EXPECT_EQ(
+        decoded->orderState,
+        accepted.orderState);
+
+    EXPECT_EQ(
+        decoded->clOrdId,
+        accepted.clOrdId);
+
+    EXPECT_EQ(
+        decoded->appendageLength,
+        accepted.appendageLength);
+}
+TEST(
+    OuchDecoderTest,
+    DecodesExecutedProducedByEncoder)
+{
+    ouch::Executed executed{};
+
+    executed.timestamp = 123456789;
+    executed.userRefNum = 202;
+    executed.quantity = 30;
+    executed.price = 100;
+    executed.liquidityFlag = 'R';
+    executed.matchNumber = 9001;
+    executed.appendageLength = 0;
+
+    const auto buffer =
+        ouch::ExecutedEncoder::encode(
+            executed);
+
+    ASSERT_EQ(
+        buffer.size(),
+        36U);
+
+    ASSERT_EQ(
+        buffer[0],
+        static_cast<std::uint8_t>('E'));
+
+    const auto response =
+        ouch::OuchResponseDispatcher::dispatch(
+            buffer.data(),
+            buffer.size());
+
+    ASSERT_TRUE(
+        response.has_value());
+
+    ASSERT_TRUE(
+        std::holds_alternative<ouch::Executed>(
+            *response));
+
+    const auto& decoded =
+        std::get<ouch::Executed>(
+            *response);
+
+    EXPECT_EQ(
+        decoded.timestamp,
+        executed.timestamp);
+
+    EXPECT_EQ(
+        decoded.userRefNum,
+        executed.userRefNum);
+
+    EXPECT_EQ(
+        decoded.quantity,
+        executed.quantity);
+
+    EXPECT_EQ(
+        decoded.price,
+        executed.price);
+
+    EXPECT_EQ(
+        decoded.liquidityFlag,
+        executed.liquidityFlag);
+
+    EXPECT_EQ(
+        decoded.matchNumber,
+        executed.matchNumber);
+
+    EXPECT_EQ(
+        decoded.appendageLength,
+        0U);
 }

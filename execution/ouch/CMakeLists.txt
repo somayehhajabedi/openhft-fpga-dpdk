@@ -11,6 +11,9 @@ add_library(
         decoders/executed_decoder.cpp
         decoders/canceled_decoder.cpp
         ouch_response_dispatcher.cpp
+	accepted_encoder.cpp
+	executed_encoder.cpp
+
 )
 
 target_include_directories(
