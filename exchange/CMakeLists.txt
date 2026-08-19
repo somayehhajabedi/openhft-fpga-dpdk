@@ -3,6 +3,7 @@ add_library(
     STATIC
         exchange_ouch_handler.cpp
         exchange_execution_listener.cpp
+        exchange_tcp_server.cpp
 )
 
 target_include_directories(

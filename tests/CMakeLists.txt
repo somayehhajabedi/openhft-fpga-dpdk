@@ -61,6 +61,7 @@ add_executable(parser_tests
     integration/ouch_gateway_pipeline_test.cpp
     integration/tcp_ouch_transport_test.cpp
     integration/exchange_ouch_handler_test.cpp
+    integration/exchange_tcp_server_test.cpp
 
 
 )
