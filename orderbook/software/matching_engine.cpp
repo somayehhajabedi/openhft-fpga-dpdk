@@ -8,43 +8,30 @@ MatchingEngine::MatchingEngine(
 {
 }
 
-
-bool MatchingEngine::submitOrder(
+OrderId MatchingEngine::submitOrder(
     AccountId accountId,
     Side side,
     Price price,
     Quantity quantity)
 {
     Order* order =
-        orderPool_.acquire();
+        prepareOrder(
+            accountId,
+            side,
+            price,
+            quantity);
 
     if (order == nullptr)
     {
-        return false;
+        return 0;
     }
 
-    order->id =
-        sequencer_.next();
-
-    order->account_id =
-        accountId;
-
-    order->side =
-        side;
-
-    order->price =
-        price;
-
-    order->quantity =
-        quantity;
-
-    order->level = nullptr;
-    order->prev = nullptr;
-    order->next = nullptr;
+    const OrderId orderId =
+        order->id;
 
     process(order);
 
-    return true;
+    return orderId;
 }
 
 void MatchingEngine::process(
@@ -218,4 +205,40 @@ void MatchingEngine::releaseIfOwned(
     {
         orderPool_.release(order);
     }
+}
+
+Order* MatchingEngine::prepareOrder(
+    AccountId accountId,
+    Side side,
+    Price price,
+    Quantity quantity)
+{
+    Order* order =
+        orderPool_.acquire();
+
+    if (order == nullptr)
+    {
+        return nullptr;
+    }
+
+    order->id =
+        sequencer_.next();
+
+    order->account_id =
+        accountId;
+
+    order->side =
+        side;
+
+    order->price =
+        price;
+
+    order->quantity =
+        quantity;
+
+    order->level = nullptr;
+    order->prev = nullptr;
+    order->next = nullptr;
+
+    return order;
 }

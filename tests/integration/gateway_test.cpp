@@ -63,11 +63,21 @@ TEST_F(GatewayTest, AcceptsValidOrder)
             100,
             100);
 
+    const GatewayResult result =
+        gateway.submit(intent);
+
+    EXPECT_TRUE(
+        result.accepted());
+
     EXPECT_EQ(
-        gateway.submit(intent),
+        result.riskResult,
         RiskResult::Accepted);
 
-    ASSERT_TRUE(executionSink.submitted);
+    EXPECT_TRUE(
+        result.executionSucceeded);
+
+    ASSERT_TRUE(
+        executionSink.submitted);
 
     EXPECT_EQ(
         executionSink.lastIntent.accountId,
@@ -95,11 +105,21 @@ TEST_F(GatewayTest, RejectsZeroPrice)
             0,
             100);
 
+    const GatewayResult result =
+        gateway.submit(intent);
+
+    EXPECT_FALSE(
+        result.accepted());
+
     EXPECT_EQ(
-        gateway.submit(intent),
+        result.riskResult,
         RiskResult::InvalidPrice);
 
-    EXPECT_FALSE(executionSink.submitted);
+    EXPECT_FALSE(
+        result.executionSucceeded);
+
+    EXPECT_FALSE(
+        executionSink.submitted);
 }
 
 TEST_F(GatewayTest, RejectsZeroQuantity)
@@ -111,11 +131,21 @@ TEST_F(GatewayTest, RejectsZeroQuantity)
             100,
             0);
 
+    const GatewayResult result =
+        gateway.submit(intent);
+
+    EXPECT_FALSE(
+        result.accepted());
+
     EXPECT_EQ(
-        gateway.submit(intent),
+        result.riskResult,
         RiskResult::InvalidQuantity);
 
-    EXPECT_FALSE(executionSink.submitted);
+    EXPECT_FALSE(
+        result.executionSucceeded);
+
+    EXPECT_FALSE(
+        executionSink.submitted);
 }
 
 TEST_F(GatewayTest, RejectsOrderAboveQuantityLimit)
@@ -127,11 +157,21 @@ TEST_F(GatewayTest, RejectsOrderAboveQuantityLimit)
             1,
             100001);
 
+    const GatewayResult result =
+        gateway.submit(intent);
+
+    EXPECT_FALSE(
+        result.accepted());
+
     EXPECT_EQ(
-        gateway.submit(intent),
+        result.riskResult,
         RiskResult::MaxOrderQuantityExceeded);
 
-    EXPECT_FALSE(executionSink.submitted);
+    EXPECT_FALSE(
+        result.executionSucceeded);
+
+    EXPECT_FALSE(
+        executionSink.submitted);
 }
 
 TEST_F(
@@ -152,17 +192,29 @@ TEST_F(
             100,
             200);
 
-    EXPECT_EQ(
-        gateway.submit(firstIntent),
-        RiskResult::Accepted);
+    const GatewayResult firstResult =
+        gateway.submit(firstIntent);
+
+    EXPECT_TRUE(
+        firstResult.accepted());
 
     executionSink.submitted = false;
 
+    const GatewayResult secondResult =
+        gateway.submit(secondIntent);
+
+    EXPECT_FALSE(
+        secondResult.accepted());
+
     EXPECT_EQ(
-        gateway.submit(secondIntent),
+        secondResult.riskResult,
         RiskResult::MaxPositionExceeded);
 
-    EXPECT_FALSE(executionSink.submitted);
+    EXPECT_FALSE(
+        secondResult.executionSucceeded);
+
+    EXPECT_FALSE(
+        executionSink.submitted);
 }
 
 TEST_F(
@@ -178,9 +230,18 @@ TEST_F(
             100,
             400);
 
+    const GatewayResult firstResult =
+        gateway.submit(firstIntent);
+
+    EXPECT_FALSE(
+        firstResult.accepted());
+
     EXPECT_EQ(
-        gateway.submit(firstIntent),
+        firstResult.riskResult,
         RiskResult::Accepted);
+
+    EXPECT_FALSE(
+        firstResult.executionSucceeded);
 
     executionSink.acceptSubmission = true;
     executionSink.submitted = false;
@@ -192,7 +253,16 @@ TEST_F(
             100,
             200);
 
+    const GatewayResult secondResult =
+        gateway.submit(secondIntent);
+
+    EXPECT_TRUE(
+        secondResult.accepted());
+
     EXPECT_EQ(
-        gateway.submit(secondIntent),
+        secondResult.riskResult,
         RiskResult::Accepted);
+
+    EXPECT_TRUE(
+        secondResult.executionSucceeded);
 }

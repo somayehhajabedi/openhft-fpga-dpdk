@@ -36,4 +36,8 @@ target_link_libraries(
 	strategy
 	replay
 	itch_parser
+        gateway
+	risk
+	ouch
+
 )

@@ -12,6 +12,7 @@
 
 class MatchingEngine
 {
+
 public:
     static constexpr std::size_t DefaultOrderCapacity = 4096;
 
@@ -23,11 +24,19 @@ public:
         Order* order);
 
     [[nodiscard]]
-    bool submitOrder(
+    Order* prepareOrder(
         AccountId accountId,
         Side side,
         Price price,
         Quantity quantity);
+
+    [[nodiscard]]
+    OrderId submitOrder(
+        AccountId accountId,
+        Side side,
+        Price price,
+        Quantity quantity);
+
 
 private:
     void releaseIfOwned(
