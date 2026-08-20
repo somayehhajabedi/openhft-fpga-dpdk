@@ -46,6 +46,7 @@ add_executable(parser_tests
     unit/execution/ouch_execution_sink_test.cpp
     unit/execution/ouch_decoder_test.cpp
     unit/execution/ouch_response_dispatcher_test.cpp
+    unit/logging/async_logger_test.cpp
 
 
 

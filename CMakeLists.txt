@@ -37,6 +37,7 @@ add_subdirectory(orderbook/software)
 add_subdirectory(risk)
 add_subdirectory(gateway)
 add_subdirectory(apps)
+add_subdirectory(logging)
 
 add_subdirectory(benchmarks)
 

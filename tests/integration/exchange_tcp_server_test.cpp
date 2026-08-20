@@ -14,6 +14,18 @@
 
 #include "orderbook/software/matching_engine.hpp"
 
+#include "position/position_manager.hpp"
+
+#include <spdlog/spdlog.h>
+
+#include "logging/async_logger.hpp"
+
+#include <chrono>
+#include <cstdio>
+#include <fstream>
+#include <iterator>
+#include <string>
+#include <thread>
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -204,4 +216,133 @@ TEST(
         serverOk.load());
 
     server.stop();
+}
+
+TEST(
+    ExchangeTcpServerTest,
+    WritesServerLifecycleEventsToAsyncLog)
+{
+    const std::string logPath =
+        "exchange_tcp_server_test.log";
+
+    std::remove(
+        logPath.c_str());
+
+    AsyncLogger::initialize(
+        logPath);
+
+    PositionManager positionManager;
+
+    EventDispatcher dispatcher;
+
+    dispatcher.addListener(
+        &positionManager);
+
+    MatchingEngine engine(
+        dispatcher);
+
+    ExchangeOrderSessionMap sessionMap;
+
+    ExchangeOuchHandler handler(
+        engine,
+        sessionMap);
+
+    ExchangeTcpServer server(
+        0,
+        1001,
+        handler);
+
+    ASSERT_TRUE(
+        server.start());
+
+    const std::uint16_t port =
+        server.port();
+
+    std::thread serverThread(
+        [&server]()
+        {
+            for (int i = 0;
+                 i < 20;
+                 ++i)
+            {
+                if (!server.pollOnce(50))
+                {
+                    break;
+                }
+            }
+        });
+
+    ouch::TcpOuchTransport transport(
+        "127.0.0.1",
+        port);
+
+    ASSERT_TRUE(
+        transport.connect());
+
+    //
+    // Let epoll observe the connection.
+    //
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(50));
+
+    transport.close();
+
+    //
+    // Let epoll observe the peer close.
+    //
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(100));
+
+    serverThread.join();
+
+    server.stop();
+
+    auto logger =
+        AsyncLogger::get();
+
+    ASSERT_NE(
+        logger,
+        nullptr);
+
+    logger->flush();
+
+    //
+    // Async logger: allow the worker to drain
+    // before shutting it down.
+    //
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(50));
+
+    AsyncLogger::shutdown();
+
+    std::ifstream stream(
+        logPath);
+
+    ASSERT_TRUE(
+        stream.is_open());
+
+    const std::string contents(
+        (std::istreambuf_iterator<char>(
+            stream)),
+        std::istreambuf_iterator<char>());
+
+    EXPECT_NE(
+        contents.find(
+            "Exchange TCP server started"),
+        std::string::npos);
+
+    EXPECT_NE(
+        contents.find(
+            "TCP client connected"),
+        std::string::npos);
+
+    EXPECT_NE(
+        contents.find(
+            "TCP client disconnected"),
+        std::string::npos);
+
+    stream.close();
+
+    std::remove(
+        logPath.c_str());
 }
