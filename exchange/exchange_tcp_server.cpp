@@ -1,11 +1,48 @@
 #include "exchange/exchange_tcp_server.hpp"
 
+#include "logging/async_logger.hpp"
+
+#include <spdlog/spdlog.h>
+
 #include <arpa/inet.h>
 #include <cerrno>
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#include <utility>
+
+namespace
+{
+
+template <typename... Args>
+void logInfo(
+    spdlog::format_string_t<Args...> format,
+    Args&&... args)
+{
+    if (auto logger = AsyncLogger::get())
+    {
+        logger->info(
+            format,
+            std::forward<Args>(args)...);
+    }
+}
+
+template <typename... Args>
+void logError(
+    spdlog::format_string_t<Args...> format,
+    Args&&... args)
+{
+    if (auto logger = AsyncLogger::get())
+    {
+        logger->error(
+            format,
+            std::forward<Args>(args)...);
+    }
+}
+
+} // namespace
 
 ExchangeTcpServer::ExchangeTcpServer(
     std::uint16_t port,
@@ -33,6 +70,10 @@ bool ExchangeTcpServer::start()
 
     if (listenFd_ < 0)
     {
+        logError(
+            "socket creation failed errno={}",
+            errno);
+
         return false;
     }
 
@@ -48,6 +89,11 @@ bool ExchangeTcpServer::start()
     if (!setNonBlocking(
             listenFd_))
     {
+        logError(
+            "failed to set listening socket non-blocking fd={} errno={}",
+            listenFd_,
+            errno);
+
         stop();
         return false;
     }
@@ -66,36 +112,50 @@ bool ExchangeTcpServer::start()
                 &address),
             sizeof(address)) < 0)
     {
+        logError(
+            "bind failed port={} errno={}",
+            port_,
+            errno);
+
         stop();
         return false;
     }
 
     if (port_ == 0)
     {
-    sockaddr_in boundAddress{};
+        sockaddr_in boundAddress{};
 
-    socklen_t boundAddressLength =
-        sizeof(boundAddress);
+        socklen_t boundAddressLength =
+            sizeof(boundAddress);
 
-    if (::getsockname(
-            listenFd_,
-            reinterpret_cast<sockaddr*>(
-                &boundAddress),
-            &boundAddressLength) < 0)
-    {
-        stop();
-        return false;
-    }
+        if (::getsockname(
+                listenFd_,
+                reinterpret_cast<sockaddr*>(
+                    &boundAddress),
+                &boundAddressLength) < 0)
+        {
+            logError(
+                "getsockname failed errno={}",
+                errno);
 
-    port_ =
-        ntohs(
-            boundAddress.sin_port);
+            stop();
+            return false;
+        }
+
+        port_ =
+            ntohs(
+                boundAddress.sin_port);
     }
 
     if (::listen(
             listenFd_,
             SOMAXCONN) < 0)
     {
+        logError(
+            "listen failed port={} errno={}",
+            port_,
+            errno);
+
         stop();
         return false;
     }
@@ -106,6 +166,10 @@ bool ExchangeTcpServer::start()
 
     if (epollFd_ < 0)
     {
+        logError(
+            "epoll_create1 failed errno={}",
+            errno);
+
         stop();
         return false;
     }
@@ -124,9 +188,18 @@ bool ExchangeTcpServer::start()
             listenFd_,
             &event) < 0)
     {
+        logError(
+            "epoll_ctl add listen socket failed fd={} errno={}",
+            listenFd_,
+            errno);
+
         stop();
         return false;
     }
+
+    logInfo(
+        "Exchange TCP server started port={}",
+        port_);
 
     return true;
 }
@@ -153,7 +226,16 @@ bool ExchangeTcpServer::pollOnce(
 
     if (eventCount < 0)
     {
-        return errno == EINTR;
+        if (errno == EINTR)
+        {
+            return true;
+        }
+
+        logError(
+            "epoll_wait failed errno={}",
+            errno);
+
+        return false;
     }
 
     for (int index = 0;
@@ -173,12 +255,21 @@ bool ExchangeTcpServer::pollOnce(
             continue;
         }
 
-        if ((events[index].events &
+	if ((events[index].events &
              (EPOLLERR | EPOLLHUP)) != 0)
         {
+            const std::uint32_t eventMask =
+               events[index].events;
+
+            logError(
+                "epoll client error fd={} events={}",
+                fd,
+                eventMask);
+
             closeClient(fd);
             continue;
-        }
+         }
+
 
         if ((events[index].events &
              EPOLLIN) != 0)
@@ -243,6 +334,11 @@ bool ExchangeTcpServer::acceptClients()
                     clientFd,
                     &event) < 0)
             {
+                logError(
+                    "epoll_ctl add client failed fd={} errno={}",
+                    clientFd,
+                    errno);
+
                 ::close(clientFd);
                 return false;
             }
@@ -250,6 +346,10 @@ bool ExchangeTcpServer::acceptClients()
             clients_.emplace(
                 clientFd,
                 ClientState{});
+
+            logInfo(
+                "TCP client connected fd={}",
+                clientFd);
 
             continue;
         }
@@ -265,6 +365,10 @@ bool ExchangeTcpServer::acceptClients()
             continue;
         }
 
+        logError(
+            "accept4 failed errno={}",
+            errno);
+
         return false;
     }
 }
@@ -278,6 +382,10 @@ bool ExchangeTcpServer::handleClientReadable(
 
     if (it == clients_.end())
     {
+        logError(
+            "client state not found fd={}",
+            clientFd);
+
         return false;
     }
 
@@ -315,6 +423,10 @@ bool ExchangeTcpServer::handleClientReadable(
 
                 if (!response.has_value())
                 {
+                    logError(
+                        "OUCH EnterOrder handling failed fd={}",
+                        clientFd);
+
                     return false;
                 }
 
@@ -334,6 +446,10 @@ bool ExchangeTcpServer::handleClientReadable(
 
         if (received == 0)
         {
+            logInfo(
+                "TCP peer closed connection fd={}",
+                clientFd);
+
             return false;
         }
 
@@ -347,6 +463,11 @@ bool ExchangeTcpServer::handleClientReadable(
         {
             continue;
         }
+
+        logError(
+            "recv failed fd={} errno={}",
+            clientFd,
+            errno);
 
         return false;
     }
@@ -390,6 +511,11 @@ bool ExchangeTcpServer::sendAll(
             continue;
         }
 
+        logError(
+            "send failed fd={} errno={}",
+            clientFd,
+            errno);
+
         return false;
     }
 
@@ -399,6 +525,10 @@ bool ExchangeTcpServer::sendAll(
 void ExchangeTcpServer::closeClient(
     int clientFd)
 {
+    logInfo(
+        "TCP client disconnected fd={}",
+        clientFd);
+
     ::epoll_ctl(
         epollFd_,
         EPOLL_CTL_DEL,
@@ -439,9 +569,9 @@ void ExchangeTcpServer::stop() noexcept
         listenFd_ = -1;
     }
 }
+
 std::uint16_t
 ExchangeTcpServer::port() const noexcept
 {
     return port_;
 }
-

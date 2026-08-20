@@ -17,4 +17,5 @@ target_link_libraries(
     PUBLIC
         ouch
         matching_engine_core
+	logging
 )
