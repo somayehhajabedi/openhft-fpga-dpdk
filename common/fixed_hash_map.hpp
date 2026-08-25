@@ -107,6 +107,7 @@ public:
 
         return nullptr;
     }
+
     bool erase(const Key& key)
     {
         std::size_t index = hash(key);
@@ -116,24 +117,15 @@ public:
             Entry& entry = entries_[index];
 
             if (entry.state == EntryState::Empty)
+            {
                 return false;
-
-            if (entry.state == EntryState::Occupied &&
-                entry.key == key)
-            {
-                entry.state = EntryState::Deleted;
-                --size_;
-
-
-            if (entry.state == EntryState::Occupied &&
-                entry.key == key)
-            {
-                entry.state = EntryState::Deleted;
-                --size_;
-
-                return true;
             }
 
+            if (entry.state == EntryState::Occupied &&
+                entry.key == key)
+            {
+                entry.state = EntryState::Deleted;
+                --size_;
 
                 return true;
             }
@@ -143,6 +135,7 @@ public:
 
         return false;
     }
+
     
     bool contains(const Key& key) const
     {

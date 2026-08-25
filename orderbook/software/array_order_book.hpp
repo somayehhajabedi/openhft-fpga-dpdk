@@ -1,15 +1,14 @@
-
 #pragma once
 
 #include "order.hpp"
 #include "price_level.hpp"
 #include "common/types.hpp"
+#include "common/fixed_hash_map.hpp"
 #include "strategy/market_view.hpp"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <unordered_map>
 
 
 struct OrderUpdateResult
@@ -18,11 +17,13 @@ struct OrderUpdateResult
     Order* removed_order = nullptr;
 };
 
+
 class ArrayOrderBook final
     : public MarketView
 {
 public:
     static constexpr std::size_t MaxPriceLevels = 100000;
+    static constexpr std::size_t DefaultOrderCapacity = 4096;
 
     void addOrder(Order* order);
 
@@ -89,5 +90,8 @@ private:
     Price best_bid_ = 0;
     Price best_ask_ = 0;
 
-    std::unordered_map<OrderId, Order*> order_index_;
+    FixedHashMap<
+        OrderId,
+        Order*,
+        DefaultOrderCapacity> order_index_;
 };

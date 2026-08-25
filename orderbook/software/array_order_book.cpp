@@ -1,3 +1,4 @@
+
 #include "array_order_book.hpp"
 
 #include <bit>
@@ -72,24 +73,25 @@ void ArrayOrderBook::addOrder(Order* order)
         }
     }
 
-    order_index_[order->id] =
-        order;
+    order_index_.insert(
+        order->id,
+        order);
 }
 
 
 Order* ArrayOrderBook::cancelOrder(
     OrderId id)
 {
-    auto it =
+    Order** found =
         order_index_.find(id);
 
-    if (it == order_index_.end())
+    if (found == nullptr)
     {
         return nullptr;
     }
 
     Order* order =
-        it->second;
+        *found;
 
     PriceLevel* level =
         order->level;
@@ -124,7 +126,7 @@ Order* ArrayOrderBook::cancelOrder(
         }
     }
 
-    order_index_.erase(it);
+    order_index_.erase(id);
 
     return order;
 }
@@ -136,16 +138,16 @@ OrderUpdateResult ArrayOrderBook::reduceOrder(
 {
     OrderUpdateResult result;
 
-    auto it =
+    Order** found =
         order_index_.find(id);
 
-    if (it == order_index_.end())
+    if (found == nullptr)
     {
         return result;
     }
 
     Order* order =
-        it->second;
+        *found;
 
     if (cancelledQuantity == 0 ||
         cancelledQuantity > order->quantity)
@@ -210,20 +212,20 @@ bool ArrayOrderBook::replaceOrder(
         return false;
     }
 
-    auto it =
+    Order** found =
         order_index_.find(
             originalOrderId);
 
-    if (it == order_index_.end())
+    if (found == nullptr)
     {
         return false;
     }
 
     const Side side =
-        it->second->side;
+        (*found)->side;
 
     const AccountId accountId =
-        it->second->account_id;
+        (*found)->account_id;
 
     Order* order =
         cancelOrder(
