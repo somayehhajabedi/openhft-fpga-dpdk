@@ -2486,6 +2486,45 @@ docs/
                  Grafana
 
 
+///////////////////////////////////////////////////////
+
+
+## FixedHashMap Order Book Optimization
+
+The order index in `ArrayOrderBook` was changed from
+`std::unordered_map<OrderId, Order*>` to a fixed-capacity,
+open-addressing `FixedHashMap`.
+
+The goal was to remove node-based hash-table overhead from the
+order-book hot path and improve cache locality.
+
+### Benchmark
+
+Benchmarks were executed using a Release build with 10 repetitions.
+Median CPU time is reported because CPU frequency scaling was enabled
+and some runs contained significant timing noise.
+
+| Operation | std::unordered_map | FixedHashMap | Improvement |
+|-----------|-------------------:|-------------:|------------:|
+| Add       | 844 ns             | 514 ns       | 39.1% |
+| Cancel    | 557 ns             | 406 ns       | 27.1% |
+| Replace   | 801 ns             | 396 ns       | 50.6% |
+| Execute   | 589 ns             | 289 ns       | 50.9% |
+
+Approximate speedups:
+
+- Add: 1.64x
+- Cancel: 1.37x
+- Replace: 2.02x
+- Execute: 2.04x
+
+The results indicate that the fixed-capacity, contiguous hash table
+substantially reduces order-index lookup/update overhead, particularly
+for Replace and Execute operations.
+
+These measurements should be interpreted as directional rather than
+absolute because CPU frequency scaling was enabled during the run.
+
 
 
 
