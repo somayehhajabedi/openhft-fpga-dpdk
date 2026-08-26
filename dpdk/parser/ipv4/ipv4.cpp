@@ -1,81 +1,116 @@
 #include "ipv4.hpp"
 
-#include <arpa/inet.h>
+#include "common/endian.hpp"
 
 const IPv4Header*
-IPv4Parser::parse(const std::uint8_t* data,
-                  std::size_t length)
+IPv4Parser::parse(
+    const std::uint8_t* data,
+    std::size_t length)
 {
-    if (!data || length < sizeof(IPv4Header))
+    if (!data ||
+        length < sizeof(IPv4Header))
+    {
         return nullptr;
+    }
 
     const auto* header =
-        reinterpret_cast<const IPv4Header*>(data);
+        reinterpret_cast<const IPv4Header*>(
+            data);
 
     if (version(header) != 4)
+    {
         return nullptr;
+    }
 
-    const std::uint8_t header_length =
+    const std::uint8_t headerLength =
         headerLengthBytes(header);
 
-    if (header_length < sizeof(IPv4Header))
+    if (headerLength < sizeof(IPv4Header))
+    {
         return nullptr;
+    }
 
-    if (length < header_length)
+    if (length < headerLength)
+    {
         return nullptr;
+    }
 
     return header;
 }
 
-std::uint8_t IPv4Parser::version(const IPv4Header* header)
+std::uint8_t
+IPv4Parser::version(
+    const IPv4Header* header)
 {
     if (!header)
+    {
         return 0;
+    }
 
     return header->version_ihl >> 4;
 }
 
-std::uint8_t IPv4Parser::headerLengthBytes(
+std::uint8_t
+IPv4Parser::headerLengthBytes(
     const IPv4Header* header)
 {
     if (!header)
+    {
         return 0;
+    }
 
-    const std::uint8_t ihl = header->version_ihl & 0x0F;
+    const std::uint8_t ihl =
+        header->version_ihl & 0x0F;
 
-    return static_cast<std::uint8_t>(ihl * 4);
+    return static_cast<std::uint8_t>(
+        ihl * 4);
 }
 
-std::uint16_t IPv4Parser::totalLength(
+std::uint16_t
+IPv4Parser::totalLength(
     const IPv4Header* header)
 {
     if (!header)
+    {
         return 0;
+    }
 
-    return ntohs(header->total_length);
+    return fromBigEndian(
+        header->total_length);
 }
 
 const std::uint8_t*
-IPv4Parser::payload(const IPv4Header* header)
+IPv4Parser::payload(
+    const IPv4Header* header)
 {
     if (!header)
+    {
         return nullptr;
+    }
 
-    return reinterpret_cast<const std::uint8_t*>(header)
-           + headerLengthBytes(header);
+    return reinterpret_cast<const std::uint8_t*>(
+        header) + headerLengthBytes(header);
 }
 
 std::size_t
-IPv4Parser::payloadLength(const IPv4Header* header)
+IPv4Parser::payloadLength(
+    const IPv4Header* header)
 {
     if (!header)
+    {
         return 0;
+    }
 
-    const std::uint16_t total_length = totalLength(header);
-    const std::uint8_t header_length = headerLengthBytes(header);
+    const std::uint16_t totalLengthValue =
+        totalLength(header);
 
-    if (total_length < header_length)
+    const std::uint8_t headerLength =
+        headerLengthBytes(header);
+
+    if (totalLengthValue < headerLength)
+    {
         return 0;
+    }
 
-    return total_length - header_length;
+    return totalLengthValue - headerLength;
 }

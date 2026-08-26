@@ -1,10 +1,8 @@
-
 #include <gtest/gtest.h>
 
-#include <arpa/inet.h>
-#include <endian.h>
-
 #include <cstdint>
+
+#include "common/endian.hpp"
 
 #include "dpdk/parser/itch/messages/add_order.hpp"
 #include "dpdk/parser/itch/messages/order_cancel.hpp"
@@ -102,13 +100,17 @@ TEST(
     AddOrderWireMessage message{};
 
     message.message_type = 'A';
+
     message.order_reference_number =
-        htobe64(OrderId);
+        toBigEndian(OrderId);
+
     message.buy_sell_indicator = 'B';
+
     message.shares =
-        htonl(Quantity);
+        toBigEndian(Quantity);
+
     message.price =
-        htonl(PriceValue);
+        toBigEndian(PriceValue);
 
     ASSERT_TRUE(
         dispatcher.dispatch(
@@ -153,10 +155,12 @@ TEST(
     OrderCancelWireMessage message{};
 
     message.message_type = 'X';
+
     message.order_reference_number =
-        htobe64(OrderId);
+        toBigEndian(OrderId);
+
     message.cancelled_shares =
-        htonl(CancelledQuantity);
+        toBigEndian(CancelledQuantity);
 
     ASSERT_TRUE(
         dispatcher.dispatch(
@@ -192,8 +196,9 @@ TEST(
     OrderDeleteWireMessage message{};
 
     message.message_type = 'D';
+
     message.order_reference_number =
-        htobe64(OrderId);
+        toBigEndian(OrderId);
 
     ASSERT_TRUE(
         dispatcher.dispatch(
@@ -227,12 +232,15 @@ TEST(
     OrderExecutedWireMessage message{};
 
     message.message_type = 'E';
+
     message.order_reference_number =
-        htobe64(OrderId);
+        toBigEndian(OrderId);
+
     message.executed_shares =
-        htonl(ExecutedQuantity);
+        toBigEndian(ExecutedQuantity);
+
     message.match_number =
-        htobe64(MatchNumber);
+        toBigEndian(MatchNumber);
 
     ASSERT_TRUE(
         dispatcher.dispatch(
@@ -271,14 +279,18 @@ TEST(
     OrderReplaceWireMessage message{};
 
     message.message_type = 'U';
+
     message.original_order_reference =
-        htobe64(OriginalOrderId);
+        toBigEndian(OriginalOrderId);
+
     message.new_order_reference =
-        htobe64(NewOrderId);
+        toBigEndian(NewOrderId);
+
     message.shares =
-        htonl(NewQuantity);
+        toBigEndian(NewQuantity);
+
     message.price =
-        htonl(NewPrice);
+        toBigEndian(NewPrice);
 
     ASSERT_TRUE(
         dispatcher.dispatch(

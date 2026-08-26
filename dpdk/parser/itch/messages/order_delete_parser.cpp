@@ -1,6 +1,5 @@
 #include "order_delete_parser.hpp"
-
-#include <endian.h>
+#include "common/endian.hpp"
 
 const OrderDeleteWireMessage*
 OrderDeleteParser::parse(
@@ -21,6 +20,7 @@ OrderDeleteParser::orderReferenceNumber(
     const OrderDeleteWireMessage* message)
 {
     return message
-        ? be64toh(message->order_reference_number)
+        ? fromBigEndian(
+              message->order_reference_number)
         : 0;
 }

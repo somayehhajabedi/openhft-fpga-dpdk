@@ -1,6 +1,5 @@
 #include "add_order.hpp"
-#include <arpa/inet.h>
-#include <endian.h>
+#include "common/endian.hpp"
 
 const AddOrderWireMessage* AddOrderParser::parse(
     const std::uint8_t* data,
@@ -28,26 +27,35 @@ char AddOrderParser::messageType(
 std::uint16_t AddOrderParser::stockLocate(
     const AddOrderWireMessage* message)
 {
-    return message ? ntohs(message->stock_locate) : 0;
+    return message
+        ? fromBigEndian(message->stock_locate)
+        : 0;
 }
 
 std::uint16_t AddOrderParser::trackingNumber(
     const AddOrderWireMessage* message)
 {
-    return message ? ntohs(message->tracking_number) : 0;
+    return message
+        ? fromBigEndian(message->tracking_number)
+        : 0;
 }
 
 std::uint32_t AddOrderParser::shares(
     const AddOrderWireMessage* message)
 {
-    return message ? ntohl(message->shares) : 0;
+    return message
+        ? fromBigEndian(message->shares)
+        : 0;
 }
 
 std::uint32_t AddOrderParser::price(
     const AddOrderWireMessage* message)
 {
-    return message ? ntohl(message->price) : 0;
+    return message
+        ? fromBigEndian(message->price)
+        : 0;
 }
+
 /*
 AddOrder AddOrderParser::toModel(
     const AddOrderWireMessage* message)
@@ -72,13 +80,14 @@ AddOrder AddOrderParser::toModel(
 
     return order;
 }
-    */
+*/
 
 std::uint64_t AddOrderParser::orderReferenceNumber(
     const AddOrderWireMessage* message)
 {
-      return message
-        ? be64toh(message->order_reference_number)
+    return message
+        ? fromBigEndian(
+              message->order_reference_number)
         : 0;
 }
 
