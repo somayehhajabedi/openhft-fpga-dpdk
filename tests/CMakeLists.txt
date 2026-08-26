@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(OpenHFTTests LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -47,6 +47,8 @@ add_executable(parser_tests
     unit/execution/ouch_decoder_test.cpp
     unit/execution/ouch_response_dispatcher_test.cpp
     unit/logging/async_logger_test.cpp
+    unit/parser/order_cancel_parser_test.cpp
+    unit/mapper/order_cancel_mapper_test.cpp
 
 
 

@@ -1,6 +1,5 @@
 #include "order_replace_parser.hpp"
-
-#include <endian.h>
+#include "common/endian.hpp"
 
 const OrderReplaceWireMessage*
 OrderReplaceParser::parse(
@@ -21,7 +20,8 @@ OrderReplaceParser::originalOrderReferenceNumber(
     const OrderReplaceWireMessage* message)
 {
     return message
-        ? be64toh(message->original_order_reference)
+        ? fromBigEndian(
+              message->original_order_reference)
         : 0;
 }
 
@@ -30,7 +30,8 @@ OrderReplaceParser::newOrderReferenceNumber(
     const OrderReplaceWireMessage* message)
 {
     return message
-        ? be64toh(message->new_order_reference)
+        ? fromBigEndian(
+              message->new_order_reference)
         : 0;
 }
 
@@ -39,7 +40,8 @@ OrderReplaceParser::shares(
     const OrderReplaceWireMessage* message)
 {
     return message
-        ? be32toh(message->shares)
+        ? fromBigEndian(
+              message->shares)
         : 0;
 }
 
@@ -48,6 +50,7 @@ OrderReplaceParser::price(
     const OrderReplaceWireMessage* message)
 {
     return message
-        ? be32toh(message->price)
+        ? fromBigEndian(
+              message->price)
         : 0;
 }

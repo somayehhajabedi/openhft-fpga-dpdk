@@ -1,6 +1,5 @@
 #include "order_executed_parser.hpp"
-
-#include <endian.h>
+#include "common/endian.hpp"
 
 const OrderExecutedWireMessage*
 OrderExecutedParser::parse(
@@ -21,7 +20,8 @@ OrderExecutedParser::orderReferenceNumber(
     const OrderExecutedWireMessage* message)
 {
     return message
-        ? be64toh(message->order_reference_number)
+        ? fromBigEndian(
+              message->order_reference_number)
         : 0;
 }
 
@@ -30,7 +30,8 @@ OrderExecutedParser::executedShares(
     const OrderExecutedWireMessage* message)
 {
     return message
-        ? be32toh(message->executed_shares)
+        ? fromBigEndian(
+              message->executed_shares)
         : 0;
 }
 
@@ -39,6 +40,7 @@ OrderExecutedParser::matchNumber(
     const OrderExecutedWireMessage* message)
 {
     return message
-        ? be64toh(message->match_number)
+        ? fromBigEndian(
+              message->match_number)
         : 0;
 }

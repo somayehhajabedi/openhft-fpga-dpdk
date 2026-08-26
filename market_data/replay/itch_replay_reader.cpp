@@ -1,6 +1,6 @@
 #include "itch_replay_reader.hpp"
 
-#include <arpa/inet.h>
+#include "common/endian.hpp"
 
 ItchReplayReader::ItchReplayReader(
     const std::string& filePath)
@@ -23,16 +23,22 @@ bool ItchReplayReader::readNext(
         sizeof(networkLength));
 
     if (stream_.eof())
+    {
         return false;
+    }
 
     if (!stream_)
+    {
         return false;
+    }
 
     const std::uint16_t messageLength =
-        ntohs(networkLength);
+        fromBigEndian(networkLength);
 
     if (messageLength == 0)
+    {
         return false;
+    }
 
     message.resize(messageLength);
 
@@ -48,4 +54,3 @@ bool ItchReplayReader::readNext(
 
     return true;
 }
-
