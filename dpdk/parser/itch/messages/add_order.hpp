@@ -2,7 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
-
+#include <string_view>
 
 #include "models/add_order.hpp"
 
@@ -13,7 +13,7 @@ struct AddOrderWireMessage
     char message_type;                    // Offset 0, length 1
     std::uint16_t stock_locate;           // Offset 1, length 2
     std::uint16_t tracking_number;        // Offset 3, length 2
-    std::uint8_t timestamp[6];             // Offset 5, length 6
+    std::uint8_t timestamp[6];            // Offset 5, length 6
     std::uint64_t order_reference_number; // Offset 11, length 8
     char buy_sell_indicator;              // Offset 19, length 1
     std::uint32_t shares;                 // Offset 20, length 4
@@ -47,7 +47,7 @@ public:
     static std::uint32_t price(
         const AddOrderWireMessage* message);
 
-     static std::uint64_t orderReferenceNumber(
+    static std::uint64_t orderReferenceNumber(
         const AddOrderWireMessage* message);
 
     static char buySellIndicator(
@@ -56,7 +56,6 @@ public:
     static Symbol stock(
         const AddOrderWireMessage* message);
 
-
-
-
+    static std::string_view stockView(
+        const AddOrderWireMessage* message);
 };

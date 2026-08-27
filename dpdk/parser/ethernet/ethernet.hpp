@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 struct EthernetHeader
 {
@@ -16,6 +17,9 @@ class EthernetParser
 {
 public:
     static const EthernetHeader* parse(
+        std::span<const std::uint8_t> data);
+
+    static const EthernetHeader* parse(
         const std::uint8_t* data,
         std::size_t length);
 
@@ -24,6 +28,4 @@ public:
 
     static const std::uint8_t* payload(
         const EthernetHeader* header);
-
-      
 };

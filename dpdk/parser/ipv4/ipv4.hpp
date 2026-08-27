@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 #pragma pack(push, 1)
 
@@ -26,19 +27,25 @@ static_assert(sizeof(IPv4Header) == 20);
 class IPv4Parser
 {
 public:
-    static const IPv4Header* parse(const std::uint8_t* data,
-                                   std::size_t length);
+    static const IPv4Header* parse(
+        std::span<const std::uint8_t> data);
 
-    static std::uint8_t version(const IPv4Header* header);
+    static const IPv4Header* parse(
+        const std::uint8_t* data,
+        std::size_t length);
 
-    static std::uint8_t headerLengthBytes(const IPv4Header* header);
+    static std::uint8_t version(
+        const IPv4Header* header);
 
-    static std::uint16_t totalLength(const IPv4Header* header);
+    static std::uint8_t headerLengthBytes(
+        const IPv4Header* header);
 
-    static const std::uint8_t*
-    payload(const IPv4Header* header);
+    static std::uint16_t totalLength(
+        const IPv4Header* header);
 
-    static std::size_t
-    payloadLength(const IPv4Header* header);
+    static const std::uint8_t* payload(
+        const IPv4Header* header);
 
+    static std::size_t payloadLength(
+        const IPv4Header* header);
 };
