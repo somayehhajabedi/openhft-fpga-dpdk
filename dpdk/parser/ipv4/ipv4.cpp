@@ -1,21 +1,20 @@
+
 #include "ipv4.hpp"
 
 #include "common/endian.hpp"
 
 const IPv4Header*
 IPv4Parser::parse(
-    const std::uint8_t* data,
-    std::size_t length)
+    std::span<const std::uint8_t> data)
 {
-    if (!data ||
-        length < sizeof(IPv4Header))
+    if (data.size() < sizeof(IPv4Header))
     {
         return nullptr;
     }
 
     const auto* header =
         reinterpret_cast<const IPv4Header*>(
-            data);
+            data.data());
 
     if (version(header) != 4)
     {
@@ -30,12 +29,28 @@ IPv4Parser::parse(
         return nullptr;
     }
 
-    if (length < headerLength)
+    if (data.size() < headerLength)
     {
         return nullptr;
     }
 
     return header;
+}
+
+const IPv4Header*
+IPv4Parser::parse(
+    const std::uint8_t* data,
+    std::size_t length)
+{
+    if (data == nullptr)
+    {
+        return nullptr;
+    }
+
+    return parse(
+        std::span<const std::uint8_t>{
+            data,
+            length});
 }
 
 std::uint8_t

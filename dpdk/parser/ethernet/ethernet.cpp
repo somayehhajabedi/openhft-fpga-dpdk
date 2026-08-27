@@ -1,20 +1,35 @@
+
 #include "ethernet.hpp"
 
 #include "common/endian.hpp"
 
 const EthernetHeader*
 EthernetParser::parse(
-    const std::uint8_t* data,
-    std::size_t length)
+    std::span<const std::uint8_t> data)
 {
-    if (!data ||
-        length < sizeof(EthernetHeader))
+    if (data.size() < sizeof(EthernetHeader))
     {
         return nullptr;
     }
 
     return reinterpret_cast<const EthernetHeader*>(
-        data);
+        data.data());
+}
+
+const EthernetHeader*
+EthernetParser::parse(
+    const std::uint8_t* data,
+    std::size_t length)
+{
+    if (data == nullptr)
+    {
+        return nullptr;
+    }
+
+    return parse(
+        std::span<const std::uint8_t>{
+            data,
+            length});
 }
 
 std::uint16_t

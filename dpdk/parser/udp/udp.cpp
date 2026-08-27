@@ -4,21 +4,31 @@
 
 const UDPHeader*
 UDPParser::parse(
-    const std::uint8_t* data,
-    std::size_t length)
+    std::span<const std::uint8_t> data)
 {
-    if (!data)
-    {
-        return nullptr;
-    }
-
-    if (length < sizeof(UDPHeader))
+    if (data.size() < sizeof(UDPHeader))
     {
         return nullptr;
     }
 
     return reinterpret_cast<const UDPHeader*>(
-        data);
+        data.data());
+}
+
+const UDPHeader*
+UDPParser::parse(
+    const std::uint8_t* data,
+    std::size_t length)
+{
+    if (data == nullptr)
+    {
+        return nullptr;
+    }
+
+    return parse(
+        std::span<const std::uint8_t>{
+            data,
+            length});
 }
 
 std::uint16_t
@@ -57,8 +67,7 @@ UDPParser::payloadLength(
     }
 
     const std::uint16_t udpLength =
-        fromBigEndian(
-            header->length);
+        fromBigEndian(header->length);
 
     if (udpLength < sizeof(UDPHeader))
     {

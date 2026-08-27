@@ -2,8 +2,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
-#pragma pack(push,1)
+#pragma pack(push, 1)
 
 struct UDPHeader
 {
@@ -17,27 +18,25 @@ struct UDPHeader
 
 static_assert(sizeof(UDPHeader) == 8);
 
-
 class UDPParser
 {
 public:
+    static const UDPHeader* parse(
+        std::span<const std::uint8_t> data);
 
-    static const UDPHeader*
-    parse(const std::uint8_t* data,
-          std::size_t length);
+    static const UDPHeader* parse(
+        const std::uint8_t* data,
+        std::size_t length);
 
-    static std::uint16_t
-    sourcePort(const UDPHeader*);
+    static std::uint16_t sourcePort(
+        const UDPHeader* header);
 
-    static std::uint16_t
-    destinationPort(const UDPHeader*);
+    static std::uint16_t destinationPort(
+        const UDPHeader* header);
 
-    static std::uint16_t
-    payloadLength(const UDPHeader*);
+    static std::uint16_t payloadLength(
+        const UDPHeader* header);
 
-    static const std::uint8_t*
-    payload(const UDPHeader* header);
-
-    
-
+    static const std::uint8_t* payload(
+        const UDPHeader* header);
 };

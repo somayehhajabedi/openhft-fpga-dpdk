@@ -4,28 +4,40 @@
 
 #include <array>
 #include <cstdint>
+#include <string_view>
 
 TEST(AddOrderParserTest, ParsesValidMessage)
 {
-    constexpr std::array<std::uint8_t, sizeof(AddOrderWireMessage)> message{
-        'A'
-    };
+    constexpr std::array<
+        std::uint8_t,
+        sizeof(AddOrderWireMessage)> message{
+            'A'
+        };
 
-    const AddOrderWireMessage* add_order =
+    const AddOrderWireMessage* addOrder =
         AddOrderParser::parse(
             message.data(),
             message.size());
 
-    ASSERT_NE(add_order, nullptr);
+    ASSERT_NE(
+        addOrder,
+        nullptr);
 
-    EXPECT_EQ(add_order->message_type, 'A');
+    EXPECT_EQ(
+        addOrder->message_type,
+        'A');
 }
+
 
 // Verifies that 16-bit and 32-bit fields encoded in network byte order
 // are converted correctly by AddOrderParser.
-TEST(AddOrderParserTest, ConvertsNetworkByteOrder)
+TEST(
+    AddOrderParserTest,
+    ConvertsNetworkByteOrder)
 {
-    std::array<std::uint8_t, sizeof(AddOrderWireMessage)> message{};
+    std::array<
+        std::uint8_t,
+        sizeof(AddOrderWireMessage)> message{};
 
     message[0] = 'A';
 
@@ -49,16 +61,108 @@ TEST(AddOrderParserTest, ConvertsNetworkByteOrder)
     message[34] = 0xD6;
     message[35] = 0x44;
 
-    const AddOrderWireMessage* add_order =
+    const AddOrderWireMessage* addOrder =
         AddOrderParser::parse(
             message.data(),
             message.size());
 
-    ASSERT_NE(add_order, nullptr);
+    ASSERT_NE(
+        addOrder,
+        nullptr);
 
-    EXPECT_EQ(AddOrderParser::messageType(add_order), 'A');
-    EXPECT_EQ(AddOrderParser::stockLocate(add_order), 0x1234);
-    EXPECT_EQ(AddOrderParser::trackingNumber(add_order), 0x5678);
-    EXPECT_EQ(AddOrderParser::shares(add_order), 1000U);
-    EXPECT_EQ(AddOrderParser::price(add_order), 1234500U);
+    EXPECT_EQ(
+        AddOrderParser::messageType(
+            addOrder),
+        'A');
+
+    EXPECT_EQ(
+        AddOrderParser::stockLocate(
+            addOrder),
+        0x1234);
+
+    EXPECT_EQ(
+        AddOrderParser::trackingNumber(
+            addOrder),
+        0x5678);
+
+    EXPECT_EQ(
+        AddOrderParser::shares(
+            addOrder),
+        1000U);
+
+    EXPECT_EQ(
+        AddOrderParser::price(
+            addOrder),
+        1234500U);
+}
+
+
+TEST(
+    AddOrderParserTest,
+    ReturnsStockAsStringView)
+{
+    AddOrderWireMessage message{};
+
+    constexpr char expectedStock[8] = {
+        'A', 'A', 'P', 'L',
+        ' ', ' ', ' ', ' '
+    };
+
+    for (std::size_t index = 0;
+         index < sizeof(message.stock);
+         ++index)
+    {
+        message.stock[index] =
+            expectedStock[index];
+    }
+
+    const std::string_view stock =
+        AddOrderParser::stockView(
+            &message);
+
+    const std::string_view expectedView{
+        expectedStock,
+        sizeof(expectedStock)
+    };
+
+    EXPECT_EQ(
+        stock.size(),
+        8U);
+
+    EXPECT_EQ(
+        stock,
+        expectedView);
+}
+
+
+TEST(
+    AddOrderParserTest,
+    StockViewIsZeroCopy)
+{
+    AddOrderWireMessage message{};
+
+    message.stock[0] = 'I';
+    message.stock[1] = 'B';
+    message.stock[2] = 'M';
+
+    const std::string_view stock =
+        AddOrderParser::stockView(
+            &message);
+
+    EXPECT_EQ(
+        stock.data(),
+        message.stock);
+}
+
+
+TEST(
+    AddOrderParserTest,
+    StockViewHandlesNullMessage)
+{
+    const std::string_view stock =
+        AddOrderParser::stockView(
+            nullptr);
+
+    EXPECT_TRUE(
+        stock.empty());
 }
