@@ -200,3 +200,29 @@ target_link_libraries(
         market_data_pipeline
         Threads::Threads
 )
+add_executable(
+    full_flow_benchmark
+    full_flow_benchmark.cpp
+)
+
+target_include_directories(
+    full_flow_benchmark
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(
+    full_flow_benchmark
+    PRIVATE
+        benchmark::benchmark
+        benchmark::benchmark_main
+        market_data_pipeline
+        strategy
+        gateway
+        risk
+        ouch
+        exchange
+        matching_engine_core
+        orderbook
+        Threads::Threads
+)
