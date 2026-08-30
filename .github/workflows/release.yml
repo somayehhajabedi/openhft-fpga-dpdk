@@ -27,8 +27,7 @@ jobs:
             libgtest-dev \
             libbenchmark-dev \
             libpcap-dev \
-            libnuma-dev \ 
-            libdpdk-dev
+            libnuma-dev \
             libdpdk-dev
 
       - name: Configure Release build
