@@ -2,30 +2,44 @@
 
 #include <rte_ethdev.h>
 #include <rte_mempool.h>
+
 #include "config.hpp"
-#include <cstring>
+
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 
 class Receiver
 {
 public:
-    bool initialize(int argc, char** argv);
+    explicit Receiver(
+        std::optional<std::size_t> rxCpu = std::nullopt);
+
+    bool initialize(
+        int argc,
+        char** argv);
 
     void run();
+
     void listPorts();
     void printPortInfo();
-    
 
 private:
     bool createMempool();
 
+    bool configurePort(
+        std::uint16_t portId);
+
+    bool setupRxQueue(
+        std::uint16_t portId);
+
+    bool setupTxQueue(
+        std::uint16_t portId);
+
+    bool startPort(
+        std::uint16_t portId);
+
     rte_mempool* mbuf_pool_ = nullptr;
-    
-    bool configurePort(uint16_t port_id);
 
-    bool setupRxQueue(uint16_t port_id);
-
-    bool setupTxQueue(uint16_t port_id);
-
-    bool startPort(uint16_t port_id);
-
+    std::optional<std::size_t> rxCpu_;
 };
