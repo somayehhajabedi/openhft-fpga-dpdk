@@ -16,7 +16,7 @@ public:
     explicit Receiver(
         std::optional<std::size_t> rxCpu = std::nullopt);
 
-    Receiver(
+    explicit Receiver(
         UdpPayloadSink& payloadSink,
         std::optional<std::size_t> rxCpu = std::nullopt);
 
