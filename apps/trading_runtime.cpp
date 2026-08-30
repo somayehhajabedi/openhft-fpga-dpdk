@@ -19,10 +19,13 @@
 #include "strategy/strategy_engine.hpp"
 
 #include <array>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -81,6 +84,36 @@ private:
     bool sent_{false};
 };
 
+
+bool parseCpuIndex(
+    std::string_view value,
+    std::size_t& cpuIndex)
+{
+    const char* begin =
+        value.data();
+
+    const char* end =
+        value.data() + value.size();
+
+    const auto [ptr, error] =
+        std::from_chars(
+            begin,
+            end,
+            cpuIndex);
+
+    return error == std::errc{} &&
+           ptr == end;
+}
+
+
+void printUsage()
+{
+    std::cerr
+        << "Usage:\n"
+        << "  trading_runtime <itch_replay_file> "
+        << "[--pipeline-cpu <cpu>]\n";
+}
+
 } // namespace
 
 
@@ -88,16 +121,82 @@ int main(
     int argc,
     char** argv)
 {
-    if (argc != 2)
+    if (argc < 2)
     {
-        std::cerr
-            << "Usage: trading_runtime <itch_replay_file>\n";
-
+        printUsage();
         return 1;
     }
 
     const std::string replayFile =
         argv[1];
+
+    std::optional<std::size_t>
+        pipelineCpu;
+
+    for (int index = 2;
+         index < argc;
+         ++index)
+    {
+        const std::string_view argument =
+            argv[index];
+
+        if (argument == "--pipeline-cpu")
+        {
+            if (index + 1 >= argc)
+            {
+                std::cerr
+                    << "Missing value for "
+                    << "--pipeline-cpu\n";
+
+                printUsage();
+
+                return 1;
+            }
+
+            std::size_t cpuIndex = 0;
+
+            if (!parseCpuIndex(
+                    argv[index + 1],
+                    cpuIndex))
+            {
+                std::cerr
+                    << "Invalid CPU index: "
+                    << argv[index + 1]
+                    << '\n';
+
+                return 1;
+            }
+
+            pipelineCpu =
+                cpuIndex;
+
+            ++index;
+
+            continue;
+        }
+
+        std::cerr
+            << "Unknown argument: "
+            << argument
+            << '\n';
+
+        printUsage();
+
+        return 1;
+    }
+
+    if (pipelineCpu.has_value())
+    {
+        std::cout
+            << "Pipeline CPU affinity requested: CPU "
+            << pipelineCpu.value()
+            << '\n';
+    }
+    else
+    {
+        std::cout
+            << "Pipeline CPU affinity: scheduler managed\n";
+    }
 
     //
     // Local reconstructed market-data order book.
@@ -156,7 +255,8 @@ int main(
     // SPSC market-data pipeline.
     //
     MarketDataPipeline pipeline(
-        consumer);
+        consumer,
+        pipelineCpu);
 
     //
     // Replay input.
