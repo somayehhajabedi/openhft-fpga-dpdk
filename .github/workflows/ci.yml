@@ -33,7 +33,8 @@ jobs:
             libgtest-dev \
             libbenchmark-dev \
             libpcap-dev \
-            libnuma-dev
+            libnuma-dev \
+            libdpdk-dev
 
       - name: Configure Release build
         run: |
@@ -75,7 +76,8 @@ jobs:
             libgtest-dev \
             libbenchmark-dev \
             libpcap-dev \
-            libnuma-dev
+            libnuma-dev \
+            libdpdk-dev
 
       - name: Configure ASan and UBSan build
         run: |
@@ -116,7 +118,8 @@ jobs:
             libgtest-dev \
             libbenchmark-dev \
             libpcap-dev \
-            libnuma-dev
+            libnuma-dev \
+            libdpdk-dev
 
       - name: Configure TSan build
         run: |
@@ -181,7 +184,8 @@ jobs:
             libgtest-dev \
             libbenchmark-dev \
             libpcap-dev \
-            libnuma-dev
+            libnuma-dev \
+            libdpdk-dev
 
       - name: Generate compile commands
         run: |
@@ -218,7 +222,8 @@ jobs:
             libgtest-dev \
             libbenchmark-dev \
             libpcap-dev \
-            libnuma-dev
+            libnuma-dev \
+            libdpdk-dev
 
       - name: Configure coverage build
         run: |

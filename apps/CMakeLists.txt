@@ -39,5 +39,6 @@ target_link_libraries(
         gateway
 	risk
 	ouch
+        dpdk_receiver_core
 
 )

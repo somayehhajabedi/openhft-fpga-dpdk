@@ -1,6 +1,8 @@
 #include "receiver.hpp"
 #include "config.hpp"
 
+#include "common/thread_affinity.hpp"
+
 #include "../parser/ethernet/ethernet.hpp"
 #include "../parser/ipv4/ipv4.hpp"
 #include "../parser/udp/udp.hpp"
@@ -17,12 +19,27 @@
 #include <rte_mbuf.h>
 #include <rte_udp.h>
 
+Receiver::Receiver(
+    std::optional<std::size_t> rxCpu)
+    :
+    rxCpu_(rxCpu)
+{
+}
+
+Receiver::Receiver(
+    UdpPayloadSink& payloadSink,
+    std::optional<std::size_t> rxCpu)
+    :
+    payloadSink_(&payloadSink),
+    rxCpu_(rxCpu)
+{
+}
 
 bool Receiver::initialize(
     int argc,
     char** argv)
 {
-    int ret =
+    const int ret =
         rte_eal_init(
             argc,
             argv);
@@ -35,9 +52,27 @@ bool Receiver::initialize(
     return true;
 }
 
-
 void Receiver::run()
 {
+    if (rxCpu_.has_value())
+    {
+        if (!pinCurrentThreadToCpu(
+                rxCpu_.value()))
+        {
+            std::cerr
+                << "Failed to pin receiver thread to CPU "
+                << rxCpu_.value()
+                << '\n';
+        }
+        else
+        {
+            std::cout
+                << "Receiver thread pinned to CPU "
+                << rxCpu_.value()
+                << '\n';
+        }
+    }
+
     std::cout
         << "Running receiver..."
         << std::endl;
@@ -51,172 +86,177 @@ void Receiver::run()
         return;
     }
 
-    if (rte_eth_dev_count_avail() > 0)
+    if (rte_eth_dev_count_avail() == 0)
     {
-        if (!configurePort(0))
+        return;
+    }
+
+    if (!configurePort(0))
+    {
+        return;
+    }
+
+    if (!setupRxQueue(0))
+    {
+        return;
+    }
+
+    if (!setupTxQueue(0))
+    {
+        return;
+    }
+
+    if (!startPort(0))
+    {
+        return;
+    }
+
+    rte_mbuf* packets[BURST_SIZE];
+
+    while (true)
+    {
+        const std::uint16_t received =
+            rte_eth_rx_burst(
+                0,
+                0,
+                packets,
+                BURST_SIZE);
+
+        if (received == 0)
         {
-            return;
+            continue;
         }
 
-        if (!setupRxQueue(0))
+        std::cout
+            << "Received "
+            << received
+            << " packets"
+            << std::endl;
+
+        for (std::uint16_t i = 0;
+             i < received;
+             ++i)
         {
-            return;
-        }
+            rte_mbuf* packet =
+                packets[i];
 
-        if (!setupTxQueue(0))
-        {
-            return;
-        }
+            const std::uint8_t* data =
+                rte_pktmbuf_mtod(
+                    packet,
+                    const std::uint8_t*);
 
-        if (!startPort(0))
-        {
-            return;
-        }
+            const std::size_t packetLength =
+                rte_pktmbuf_pkt_len(
+                    packet);
 
-        rte_mbuf* packets[BURST_SIZE];
+            const std::span<const std::uint8_t>
+                packetView{
+                    data,
+                    packetLength};
 
-        while (true)
-        {
-            const std::uint16_t received =
-                rte_eth_rx_burst(
-                    0,
-                    0,
-                    packets,
-                    BURST_SIZE);
+            const EthernetHeader* ethernet =
+                EthernetParser::parse(
+                    packetView);
 
-            if (received == 0)
+            if (!ethernet)
             {
+                rte_pktmbuf_free(packet);
                 continue;
             }
 
-            std::cout
-                << "Received "
-                << received
-                << " packets"
-                << std::endl;
-
-            for (std::uint16_t i = 0;
-                 i < received;
-                 ++i)
+            if (EthernetParser::etherType(
+                    ethernet) != 0x0800)
             {
-                rte_mbuf* packet =
-                    packets[i];
+                rte_pktmbuf_free(packet);
+                continue;
+            }
 
-                const std::uint8_t* data =
-                    rte_pktmbuf_mtod(
-                        packet,
-                        const std::uint8_t*);
+            const std::uint8_t* ipv4Data =
+                EthernetParser::payload(
+                    ethernet);
 
-                const std::size_t packetLength =
-                    rte_pktmbuf_pkt_len(packet);
+            const std::size_t
+                ipv4AvailableLength =
+                    packetLength -
+                    sizeof(EthernetHeader);
 
-                const std::span<const std::uint8_t>
-                    packetView{
-                        data,
-                        packetLength};
+            const std::span<
+                const std::uint8_t>
+                ipv4View{
+                    ipv4Data,
+                    ipv4AvailableLength};
 
-                const EthernetHeader* ethernet =
-                    EthernetParser::parse(
-                        packetView);
+            const IPv4Header* ipv4 =
+                IPv4Parser::parse(
+                    ipv4View);
 
-                if (!ethernet)
-                {
-                    rte_pktmbuf_free(packet);
-                    continue;
-                }
+            if (!ipv4)
+            {
+                rte_pktmbuf_free(packet);
+                continue;
+            }
 
-                if (EthernetParser::etherType(
-                        ethernet) != 0x0800)
-                {
-                    rte_pktmbuf_free(packet);
-                    continue;
-                }
+            if (ipv4->protocol != 17)
+            {
+                rte_pktmbuf_free(packet);
+                continue;
+            }
 
-                const std::uint8_t* ipv4Data =
-                    EthernetParser::payload(
-                        ethernet);
+            const std::uint8_t* udpData =
+                IPv4Parser::payload(
+                    ipv4);
 
-                const std::size_t
-                    ipv4AvailableLength =
-                        packetLength -
-                        sizeof(EthernetHeader);
-
-                const std::span<
-                    const std::uint8_t>
-                    ipv4View{
-                        ipv4Data,
-                        ipv4AvailableLength};
-
-                const IPv4Header* ipv4 =
-                    IPv4Parser::parse(
-                        ipv4View);
-
-                if (!ipv4)
-                {
-                    rte_pktmbuf_free(packet);
-                    continue;
-                }
-
-                if (ipv4->protocol != 17)
-                {
-                    rte_pktmbuf_free(packet);
-                    continue;
-                }
-
-                const std::uint8_t* udpData =
-                    IPv4Parser::payload(
+            const std::size_t
+                udpAvailableLength =
+                    IPv4Parser::payloadLength(
                         ipv4);
 
-                const std::size_t
-                    udpAvailableLength =
-                        IPv4Parser::payloadLength(
-                            ipv4);
+            const std::span<
+                const std::uint8_t>
+                udpView{
+                    udpData,
+                    udpAvailableLength};
 
-                const std::span<
-                    const std::uint8_t>
-                    udpView{
-                        udpData,
-                        udpAvailableLength};
+            const UDPHeader* udp =
+                UDPParser::parse(
+                    udpView);
 
-                const UDPHeader* udp =
-                    UDPParser::parse(
-                        udpView);
+            if (!udp)
+            {
+                rte_pktmbuf_free(packet);
+                continue;
+            }
 
-                if (!udp)
-                {
-                    rte_pktmbuf_free(packet);
-                    continue;
-                }
+            const std::uint8_t* payload =
+                UDPParser::payload(
+                    udp);
 
-                const std::uint8_t* payload =
-                    UDPParser::payload(
+            const std::uint16_t
+                payloadLength =
+                    UDPParser::payloadLength(
                         udp);
 
-                const std::uint16_t
-                    payloadLength =
-                        UDPParser::payloadLength(
-                            udp);
+            const std::span<const std::uint8_t>
+                payloadView{
+                    payload,
+                    payloadLength};
 
-                std::cout
-                    << "Payload: ";
+if (payloadSink_ != nullptr)
+{
+    static_cast<void>(
+        payloadSink_->submit(
+            payloadView));
+}
 
-                std::cout.write(
-                    reinterpret_cast<
-                        const char*>(payload),
-                    payloadLength);
 
-                std::cout << '\n';
-
-                rte_pktmbuf_free(packet);
-            }
+            rte_pktmbuf_free(packet);
         }
     }
 }
 
-
 void Receiver::listPorts()
 {
-    std::uint16_t count =
+    const std::uint16_t count =
         rte_eth_dev_count_avail();
 
     std::cout
@@ -225,10 +265,9 @@ void Receiver::listPorts()
         << std::endl;
 }
 
-
 void Receiver::printPortInfo()
 {
-    std::uint16_t portCount =
+    const std::uint16_t portCount =
         rte_eth_dev_count_avail();
 
     if (portCount == 0)
@@ -269,7 +308,6 @@ void Receiver::printPortInfo()
         << std::endl;
 }
 
-
 bool Receiver::configurePort(
     std::uint16_t portId)
 {
@@ -303,7 +341,6 @@ bool Receiver::configurePort(
     return true;
 }
 
-
 bool Receiver::createMempool()
 {
     mbuf_pool_ =
@@ -330,7 +367,6 @@ bool Receiver::createMempool()
 
     return true;
 }
-
 
 bool Receiver::setupRxQueue(
     std::uint16_t portId)
@@ -361,7 +397,6 @@ bool Receiver::setupRxQueue(
     return true;
 }
 
-
 bool Receiver::setupTxQueue(
     std::uint16_t portId)
 {
@@ -389,7 +424,6 @@ bool Receiver::setupTxQueue(
 
     return true;
 }
-
 
 bool Receiver::startPort(
     std::uint16_t portId)
