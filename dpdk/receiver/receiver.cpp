@@ -26,6 +26,15 @@ Receiver::Receiver(
 {
 }
 
+Receiver::Receiver(
+    UdpPayloadSink& payloadSink,
+    std::optional<std::size_t> rxCpu)
+    :
+    payloadSink_(&payloadSink),
+    rxCpu_(rxCpu)
+{
+}
+
 bool Receiver::initialize(
     int argc,
     char** argv)
@@ -227,15 +236,18 @@ void Receiver::run()
                     UDPParser::payloadLength(
                         udp);
 
-            std::cout
-                << "Payload: ";
+            const std::span<const std::uint8_t>
+                payloadView{
+                    payload,
+                    payloadLength};
 
-            std::cout.write(
-                reinterpret_cast<
-                    const char*>(payload),
-                payloadLength);
+if (payloadSink_ != nullptr)
+{
+    static_cast<void>(
+        payloadSink_->submit(
+            payloadView));
+}
 
-            std::cout << '\n';
 
             rte_pktmbuf_free(packet);
         }

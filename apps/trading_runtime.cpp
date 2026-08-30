@@ -1,3 +1,6 @@
+#include "dpdk/receiver/itch_udp_payload_sink.hpp"
+#include "dpdk/receiver/receiver.hpp"
+
 #include "execution/ouch/ouch_execution_sink.hpp"
 #include "execution/ouch/ouch_transport.hpp"
 
@@ -33,6 +36,13 @@
 namespace
 {
 
+enum class InputMode
+{
+    Replay,
+    Dpdk
+};
+
+
 class RecordingOuchTransport final
     : public ouch::OuchTransport
 {
@@ -58,7 +68,8 @@ public:
 
         std::cout
             << "OUCH message generated and sent to transport. "
-            << "bytes=" << length
+            << "bytes="
+            << length
             << '\n';
 
         return true;
@@ -110,7 +121,11 @@ void printUsage()
 {
     std::cerr
         << "Usage:\n"
-        << "  trading_runtime <itch_replay_file> "
+        << "  trading_runtime --mode replay <itch_replay_file> "
+        << "[--pipeline-cpu <cpu>]\n"
+        << '\n'
+        << "  trading_runtime --mode dpdk "
+        << "[--rx-cpu <cpu>] "
         << "[--pipeline-cpu <cpu>]\n";
 }
 
@@ -121,34 +136,84 @@ int main(
     int argc,
     char** argv)
 {
-    if (argc < 2)
+    if (argc < 3)
     {
         printUsage();
         return 1;
     }
 
-    const std::string replayFile =
-        argv[1];
+    std::optional<InputMode> mode;
 
-    std::optional<std::size_t>
-        pipelineCpu;
+    std::optional<std::string> replayFile;
 
-    for (int index = 2;
+    std::optional<std::size_t> rxCpu;
+
+    std::optional<std::size_t> pipelineCpu;
+
+    for (int index = 1;
          index < argc;
          ++index)
     {
         const std::string_view argument =
             argv[index];
 
-        if (argument == "--pipeline-cpu")
+        if (argument == "--mode")
         {
             if (index + 1 >= argc)
             {
                 std::cerr
-                    << "Missing value for "
-                    << "--pipeline-cpu\n";
+                    << "Missing value for --mode\n";
 
                 printUsage();
+
+                return 1;
+            }
+
+            const std::string_view modeValue =
+                argv[++index];
+
+            if (modeValue == "replay")
+            {
+                mode = InputMode::Replay;
+
+                if (index + 1 >= argc)
+                {
+                    std::cerr
+                        << "Missing replay file\n";
+
+                    printUsage();
+
+                    return 1;
+                }
+
+                replayFile =
+                    argv[++index];
+            }
+            else if (modeValue == "dpdk")
+            {
+                mode = InputMode::Dpdk;
+            }
+            else
+            {
+                std::cerr
+                    << "Unknown mode: "
+                    << modeValue
+                    << '\n';
+
+                printUsage();
+
+                return 1;
+            }
+
+            continue;
+        }
+
+        if (argument == "--rx-cpu")
+        {
+            if (index + 1 >= argc)
+            {
+                std::cerr
+                    << "Missing value for --rx-cpu\n";
 
                 return 1;
             }
@@ -160,7 +225,40 @@ int main(
                     cpuIndex))
             {
                 std::cerr
-                    << "Invalid CPU index: "
+                    << "Invalid RX CPU index: "
+                    << argv[index + 1]
+                    << '\n';
+
+                return 1;
+            }
+
+            rxCpu =
+                cpuIndex;
+
+            ++index;
+
+            continue;
+        }
+
+        if (argument == "--pipeline-cpu")
+        {
+            if (index + 1 >= argc)
+            {
+                std::cerr
+                    << "Missing value for "
+                    << "--pipeline-cpu\n";
+
+                return 1;
+            }
+
+            std::size_t cpuIndex = 0;
+
+            if (!parseCpuIndex(
+                    argv[index + 1],
+                    cpuIndex))
+            {
+                std::cerr
+                    << "Invalid pipeline CPU index: "
                     << argv[index + 1]
                     << '\n';
 
@@ -185,6 +283,34 @@ int main(
         return 1;
     }
 
+    if (!mode.has_value())
+    {
+        std::cerr
+            << "Input mode was not specified\n";
+
+        printUsage();
+
+        return 1;
+    }
+
+    if (mode.value() == InputMode::Replay &&
+        !replayFile.has_value())
+    {
+        std::cerr
+            << "Replay mode requires an input file\n";
+
+        return 1;
+    }
+
+    if (mode.value() == InputMode::Replay &&
+        rxCpu.has_value())
+    {
+        std::cerr
+            << "--rx-cpu is only valid in DPDK mode\n";
+
+        return 1;
+    }
+
     if (pipelineCpu.has_value())
     {
         std::cout
@@ -198,20 +324,32 @@ int main(
             << "Pipeline CPU affinity: scheduler managed\n";
     }
 
+    if (mode.value() == InputMode::Dpdk)
+    {
+        if (rxCpu.has_value())
+        {
+            std::cout
+                << "RX CPU affinity requested: CPU "
+                << rxCpu.value()
+                << '\n';
+        }
+        else
+        {
+            std::cout
+                << "RX CPU affinity: scheduler managed\n";
+        }
+    }
+
     //
     // Local reconstructed market-data order book.
     //
     ArrayOrderBook marketBook;
 
-    //
-    // Writes market-data events into marketBook.
-    //
     MarketDataBookConsumer bookConsumer(
         marketBook);
 
     //
-    // Strategy reads the same marketBook
-    // through the read-only MarketView interface.
+    // Strategy.
     //
     SimpleThresholdStrategy strategy(
         marketBook,
@@ -242,9 +380,12 @@ int main(
     //
     // Market-data consumer:
     //
-    // 1. update book
-    // 2. run strategy
-    // 3. forward generated intent to Gateway
+    // MarketDataEvent
+    //     -> Order Book
+    //     -> Strategy
+    //     -> Gateway
+    //     -> Risk
+    //     -> OUCH
     //
     MarketDataStrategyConsumer consumer(
         bookConsumer,
@@ -259,55 +400,108 @@ int main(
         pipelineCpu);
 
     //
-    // Replay input.
+    // Raw ITCH bytes
+    //     -> MarketDataEvent
+    //     -> MarketDataPipeline
     //
-    ItchReplayReader reader(
-        replayFile);
-
-    if (!reader.isOpen())
-    {
-        std::cerr
-            << "Failed to open replay file: "
-            << replayFile
-            << '\n';
-
-        return 1;
-    }
-
-    //
-    // Raw ITCH -> MarketDataEvent -> pipeline.
-    //
-    ItchReplayDispatcher replayDispatcher(
+    ItchReplayDispatcher itchDispatcher(
         pipeline);
 
-    pipeline.start();
-
-    std::vector<std::uint8_t> message;
-
-    std::size_t replayedMessages = 0;
-
-    while (reader.readNext(message))
+    if (mode.value() == InputMode::Replay)
     {
-        if (replayDispatcher.dispatch(
-                message.data(),
-                message.size()))
+        ItchReplayReader reader(
+            replayFile.value());
+
+        if (!reader.isOpen())
         {
-            ++replayedMessages;
+            std::cerr
+                << "Failed to open replay file: "
+                << replayFile.value()
+                << '\n';
+
+            return 1;
         }
-    }
 
-    while (pipeline.processedCount() <
-           replayedMessages)
+        pipeline.start();
+
+        std::vector<std::uint8_t> message;
+
+        std::size_t replayedMessages = 0;
+
+        while (reader.readNext(message))
+        {
+            if (itchDispatcher.dispatch(
+                    message.data(),
+                    message.size()))
+            {
+                ++replayedMessages;
+            }
+        }
+
+        while (pipeline.processedCount() <
+               replayedMessages)
+        {
+            std::this_thread::yield();
+        }
+
+        pipeline.stop();
+
+        std::cout
+            << "Replay complete. "
+            << replayedMessages
+            << " market-data messages processed.\n";
+    }
+    else
     {
-        std::this_thread::yield();
+        //
+        // DPDK live input:
+        //
+        // NIC
+        //   -> Ethernet
+        //   -> IPv4
+        //   -> UDP
+        //   -> ItchUdpPayloadSink
+        //   -> ItchReplayDispatcher
+        //   -> MarketDataPipeline
+        //
+        ItchUdpPayloadSink udpPayloadSink(
+            itchDispatcher);
+
+        Receiver receiver(
+            udpPayloadSink,
+            rxCpu);
+
+        //
+        // For now initialize DPDK with only the executable name.
+        // Application/EAL command-line separation will be added later.
+        //
+        int dpdkArgc = 1;
+
+        char* dpdkArgv[] =
+        {
+            argv[0],
+            nullptr
+        };
+
+        if (!receiver.initialize(
+                dpdkArgc,
+                dpdkArgv))
+        {
+            std::cerr
+                << "Failed to initialize DPDK\n";
+
+            return 1;
+        }
+
+        pipeline.start();
+
+        //
+        // Current Receiver::run() is intentionally blocking.
+        //
+        receiver.run();
+
+        pipeline.stop();
     }
-
-    pipeline.stop();
-
-    std::cout
-        << "Replay complete. "
-        << replayedMessages
-        << " market-data messages processed.\n";
 
     const PriceLevel* bestBid =
         marketBook.bestBid();
