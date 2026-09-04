@@ -34,7 +34,8 @@ jobs:
             libbenchmark-dev \
             libpcap-dev \
             libnuma-dev \
-            libdpdk-dev
+            libdpdk-dev \
+            libssl-dev
 
       - name: Configure Release build
         run: |
@@ -45,6 +46,21 @@ jobs:
       - name: Build
         run: |
           cmake --build build --parallel
+
+      - name: Generate TLS test certificate
+        run: |
+          mkdir -p certs
+
+          openssl req \
+            -x509 \
+            -newkey rsa:2048 \
+            -sha256 \
+            -nodes \
+            -keyout certs/server.key \
+            -out certs/server.crt \
+            -days 1 \
+            -subj "/CN=127.0.0.1" \
+            -addext "subjectAltName=IP:127.0.0.1"
 
       - name: Run tests
         run: |
@@ -77,7 +93,8 @@ jobs:
             libbenchmark-dev \
             libpcap-dev \
             libnuma-dev \
-            libdpdk-dev
+            libdpdk-dev \
+            libssl-dev
 
       - name: Configure ASan and UBSan build
         run: |
@@ -90,6 +107,21 @@ jobs:
       - name: Build
         run: |
           cmake --build build-asan --parallel
+
+      - name: Generate TLS test certificate
+        run: |
+          mkdir -p certs
+
+          openssl req \
+            -x509 \
+            -newkey rsa:2048 \
+            -sha256 \
+            -nodes \
+            -keyout certs/server.key \
+            -out certs/server.crt \
+            -days 1 \
+            -subj "/CN=127.0.0.1" \
+            -addext "subjectAltName=IP:127.0.0.1"
 
       - name: Run tests
         env:
@@ -119,7 +151,8 @@ jobs:
             libbenchmark-dev \
             libpcap-dev \
             libnuma-dev \
-            libdpdk-dev
+            libdpdk-dev \
+            libssl-dev
 
       - name: Configure TSan build
         run: |
@@ -131,6 +164,21 @@ jobs:
       - name: Build
         run: |
           cmake --build build-tsan --parallel
+
+      - name: Generate TLS test certificate
+        run: |
+          mkdir -p certs
+
+          openssl req \
+            -x509 \
+            -newkey rsa:2048 \
+            -sha256 \
+            -nodes \
+            -keyout certs/server.key \
+            -out certs/server.crt \
+            -days 1 \
+            -subj "/CN=127.0.0.1" \
+            -addext "subjectAltName=IP:127.0.0.1"
 
       - name: Run tests
         env:
@@ -185,7 +233,8 @@ jobs:
             libbenchmark-dev \
             libpcap-dev \
             libnuma-dev \
-            libdpdk-dev
+            libdpdk-dev \
+            libssl-dev
 
       - name: Generate compile commands
         run: |
@@ -223,7 +272,8 @@ jobs:
             libbenchmark-dev \
             libpcap-dev \
             libnuma-dev \
-            libdpdk-dev
+            libdpdk-dev \
+            libssl-dev
 
       - name: Configure coverage build
         run: |
@@ -235,6 +285,21 @@ jobs:
       - name: Build
         run: |
           cmake --build build-coverage --parallel
+
+      - name: Generate TLS test certificate
+        run: |
+          mkdir -p certs
+
+          openssl req \
+            -x509 \
+            -newkey rsa:2048 \
+            -sha256 \
+            -nodes \
+            -keyout certs/server.key \
+            -out certs/server.crt \
+            -days 1 \
+            -subj "/CN=127.0.0.1" \
+            -addext "subjectAltName=IP:127.0.0.1"
 
       - name: Run tests
         run: |
