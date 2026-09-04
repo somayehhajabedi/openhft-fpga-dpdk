@@ -6,16 +6,22 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <unordered_map>
+#include <vector>
+
+struct ssl_ctx_st;
+struct ssl_st;
 
 class ExchangeTcpServer
 {
 public:
-	
     ExchangeTcpServer(
         std::uint16_t port,
         AccountId accountId,
-        ExchangeOuchHandler& handler);
+        ExchangeOuchHandler& handler,
+        std::string certificatePath = {},
+        std::string privateKeyPath = {});
 
     ~ExchangeTcpServer();
 
@@ -35,16 +41,30 @@ private:
 
     struct ClientState
     {
+        ssl_st* ssl{nullptr};
+
+        bool tlsHandshakeComplete{false};
+
         std::array<std::uint8_t, EnterOrderSize>
             receiveBuffer{};
 
         std::size_t receivedBytes{0};
+
+        std::vector<std::uint8_t>
+            sendBuffer{};
+
+        std::size_t sentBytes{0};
     };
+
+    bool initializeTls();
 
     bool setNonBlocking(
         int fd);
 
     bool acceptClients();
+
+    bool progressTlsHandshake(
+        int clientFd);
 
     bool handleClientReadable(
         int clientFd);
@@ -54,12 +74,24 @@ private:
         const std::uint8_t* data,
         std::size_t length);
 
+    bool updateClientEvents(
+        int clientFd,
+        std::uint32_t events);
+
     void closeClient(
         int clientFd);
+
+    bool flushPendingWrite(
+    int clientFd);
 
     std::uint16_t port_;
     AccountId accountId_;
     ExchangeOuchHandler& handler_;
+
+    std::string certificatePath_;
+    std::string privateKeyPath_;
+
+    ssl_ctx_st* sslContext_{nullptr};
 
     int listenFd_{-1};
     int epollFd_{-1};

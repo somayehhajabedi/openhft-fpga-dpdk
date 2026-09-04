@@ -50,3 +50,7 @@ data/
 *.backup.*
 *.tmp
 *.webtalk
+
+# Local TLS test certificates
+certs/*.key
+certs/*.crt
