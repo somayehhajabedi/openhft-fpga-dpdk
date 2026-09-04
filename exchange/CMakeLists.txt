@@ -1,3 +1,5 @@
+find_package(OpenSSL REQUIRED)
+
 add_library(
     exchange
     STATIC
@@ -17,5 +19,7 @@ target_link_libraries(
     PUBLIC
         ouch
         matching_engine_core
-	logging
+        logging
+        OpenSSL::SSL
+        OpenSSL::Crypto
 )

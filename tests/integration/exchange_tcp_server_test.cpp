@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "dispatcher/event_dispatcher.hpp"
+#include "execution/ouch/tls_ouch_transport.hpp"
 
 #include "exchange/exchange_order_session_map.hpp"
 #include "exchange/exchange_ouch_handler.hpp"
@@ -217,6 +218,163 @@ TEST(
 
     server.stop();
 }
+
+
+TEST(
+    ExchangeTcpServerTest,
+    EnterOrderTravelsOverTlsAndReturnsAccepted)
+{
+    EventDispatcher dispatcher;
+
+    MatchingEngine matchingEngine(
+        dispatcher);
+
+    ExchangeOrderSessionMap sessionMap;
+
+    ExchangeOuchHandler handler(
+        matchingEngine,
+        sessionMap);
+
+    const std::string certificatePath =
+    std::string(TEST_PROJECT_ROOT) +
+    "/certs/server.crt";
+
+    const std::string privateKeyPath =
+        std::string(TEST_PROJECT_ROOT) +
+        "/certs/server.key";
+
+    ExchangeTcpServer server(
+        0,
+        1001,
+        handler,
+        certificatePath,
+        privateKeyPath);
+
+
+    ASSERT_TRUE(
+        server.start());
+
+    ASSERT_NE(
+        server.port(),
+        0U);
+
+    std::atomic<bool> running{
+        true};
+
+    std::atomic<bool> serverOk{
+        true};
+
+    std::thread serverThread(
+        [&]()
+        {
+            while (running.load())
+            {
+                if (!server.pollOnce(10))
+                {
+                    serverOk.store(false);
+                    break;
+                }
+            }
+        });
+
+    ouch::TlsOuchTransport transport(
+    "127.0.0.1",
+    server.port(),
+    certificatePath);
+
+    ASSERT_TRUE(
+        transport.connect());
+
+    ouch::EnterOrder order{};
+
+    order.userRefNum = 777;
+
+    order.side =
+        Side::Buy;
+
+    order.quantity =
+        25;
+
+    order.symbol = {
+        'A', 'A', 'P', 'L',
+        ' ', ' ', ' ', ' '
+    };
+
+    order.price =
+        101;
+
+    const auto request =
+        ouch::OuchEncoder::encode(
+            order);
+
+    ASSERT_TRUE(
+        transport.send(
+            request.data(),
+            request.size()));
+
+    std::array<
+        std::uint8_t,
+        ouch::AcceptedEncoder::AcceptedSize>
+        response{};
+
+    ASSERT_TRUE(
+        transport.receive(
+            response.data(),
+            response.size()));
+
+    const auto dispatched =
+        ouch::OuchResponseDispatcher::dispatch(
+            response.data(),
+            response.size());
+
+    ASSERT_TRUE(
+        dispatched.has_value());
+
+    ASSERT_TRUE(
+        std::holds_alternative<ouch::Accepted>(
+            *dispatched));
+
+    const auto& accepted =
+        std::get<ouch::Accepted>(
+            *dispatched);
+
+    EXPECT_EQ(
+        accepted.userRefNum,
+        order.userRefNum);
+
+    EXPECT_EQ(
+        accepted.side,
+        Side::Buy);
+
+    EXPECT_EQ(
+        accepted.quantity,
+        25U);
+
+    EXPECT_EQ(
+        accepted.symbol,
+        order.symbol);
+
+    EXPECT_EQ(
+        accepted.price,
+        101U);
+
+    EXPECT_NE(
+        accepted.orderReferenceNumber,
+        0U);
+
+    transport.close();
+
+    running.store(false);
+
+    serverThread.join();
+
+    EXPECT_TRUE(
+        serverOk.load());
+
+    server.stop();
+}
+
+
 
 TEST(
     ExchangeTcpServerTest,

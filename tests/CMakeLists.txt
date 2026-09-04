@@ -75,6 +75,15 @@ target_include_directories(
         ${PROJECT_ROOT}
 )
 
+
+target_compile_definitions(
+    parser_tests
+    PRIVATE
+        TEST_PROJECT_ROOT="${PROJECT_ROOT}"
+)
+
+
+
 target_link_libraries(
     parser_tests
     PRIVATE
