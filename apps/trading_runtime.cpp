@@ -20,6 +20,7 @@
 #include "strategy/market_data_strategy_consumer.hpp"
 #include "strategy/simple_threshold_strategy.hpp"
 #include "strategy/strategy_engine.hpp"
+#include "strategy/microstructure_strategy.hpp"
 
 #include <array>
 #include <charconv>
@@ -351,11 +352,16 @@ int main(
     //
     // Strategy.
     //
-    SimpleThresholdStrategy strategy(
+    // Uses Level-1 market microstructure features such as
+    // order-book imbalance and microprice to generate
+    // directional trading signals.
+    //
+    MicrostructureStrategy strategy(
         marketBook,
-        1001,
-        100,
-        10);
+        1001,   // AccountId
+        10,     // Order quantity
+        0.70,   // Buy imbalance threshold
+        0.30);  // Sell imbalance threshold
 
     StrategyEngine strategyEngine(
         strategy);
