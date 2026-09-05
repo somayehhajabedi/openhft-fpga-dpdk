@@ -1,10 +1,11 @@
-
 add_library(
     strategy
     STATIC
         strategy_engine.cpp
         simple_threshold_strategy.cpp
         market_data_strategy_consumer.cpp
+        market_feature_extractor.cpp
+	microstructure_strategy.cpp
 )
 
 target_include_directories(

@@ -49,6 +49,8 @@ add_executable(parser_tests
     unit/logging/async_logger_test.cpp
     unit/parser/order_cancel_parser_test.cpp
     unit/mapper/order_cancel_mapper_test.cpp
+    unit/strategy/market_feature_extractor_test.cpp
+    unit/strategy/microstructure_strategy_test.cpp
 
 
 
