@@ -21,6 +21,7 @@
 #include "strategy/simple_threshold_strategy.hpp"
 #include "strategy/strategy_engine.hpp"
 #include "strategy/microstructure_strategy.hpp"
+#include "strategy/linear_signal_model.hpp"
 
 #include <array>
 #include <charconv>
@@ -349,19 +350,28 @@ int main(
     MarketDataBookConsumer bookConsumer(
         marketBook);
 
+    
     //
     // Strategy.
     //
-    // Uses Level-1 market microstructure features such as
-    // order-book imbalance and microprice to generate
-    // directional trading signals.
+    // Uses Level-1 market microstructure features and a lightweight
+    // linear signal model to generate directional trading decisions.
     //
+    const LinearSignalModel signalModel(
+        LinearSignalModel::ModelWeights{
+            .imbalance = 0.6,
+            .microPrice = 0.4,
+            .spread = 0.0
+        });
+
     MicrostructureStrategy strategy(
         marketBook,
+        signalModel,
         1001,   // AccountId
         10,     // Order quantity
-        0.70,   // Buy imbalance threshold
-        0.30);  // Sell imbalance threshold
+        0.20,   // Buy score threshold
+        -0.20); // Sell score threshold
+
 
     StrategyEngine strategyEngine(
         strategy);

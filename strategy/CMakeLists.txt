@@ -6,6 +6,7 @@ add_library(
         market_data_strategy_consumer.cpp
         market_feature_extractor.cpp
 	microstructure_strategy.cpp
+	linear_signal_model.cpp
 )
 
 target_include_directories(

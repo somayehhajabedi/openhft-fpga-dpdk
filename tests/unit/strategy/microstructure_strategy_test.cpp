@@ -1,37 +1,44 @@
 /*
  * MicrostructureStrategy Tests
  *
- * Verifies trading decisions generated from Level-1 market
- * microstructure features.
+ * Verifies that model-derived directional scores are converted
+ * into trading decisions by MicrostructureStrategy.
  *
- * The tests cover strong bid imbalance producing a buy signal,
- * strong ask imbalance producing a sell signal, and balanced
- * market conditions producing no trading intent.
+ * The tests cover bullish conditions producing a buy intent,
+ * bearish conditions producing a sell intent, and balanced
+ * conditions producing no trading intent.
  */
-
-
 
 #include <gtest/gtest.h>
 
 #include "orderbook/software/array_order_book.hpp"
+#include "strategy/linear_signal_model.hpp"
 #include "strategy/microstructure_strategy.hpp"
 
 
 TEST(
     MicrostructureStrategyTest,
-    GeneratesBuyIntentForStrongBidImbalance)
+    GeneratesBuyIntentForPositiveModelScore)
 {
     constexpr AccountId Account = 1001;
     constexpr Quantity OrderQuantity = 10;
 
     ArrayOrderBook marketBook;
 
+    const LinearSignalModel signalModel(
+        LinearSignalModel::ModelWeights{
+            .imbalance = 0.6,
+            .microPrice = 0.4,
+            .spread = 0.0
+        });
+
     MicrostructureStrategy strategy(
         marketBook,
+        signalModel,
         Account,
         OrderQuantity,
-        0.70,
-        0.30);
+        0.20,
+        -0.20);
 
     Order bidOrder{};
     bidOrder.id = 1;
@@ -69,9 +76,21 @@ TEST(
     };
 
     /*
-     * Bid-side imbalance is 0.75 and the microprice
-     * is above the midpoint, so the strategy should
-     * generate a buy signal.
+     * Features:
+     *
+     * imbalance = 0.75
+     * imbalanceSignal = 0.5
+     *
+     * microPrice = 100.75
+     * midPrice = 100.5
+     * microPriceSignal = 0.25
+     *
+     * score:
+     *
+     * 0.6 * 0.5 + 0.4 * 0.25 = 0.4
+     *
+     * 0.4 >= buy threshold 0.20
+     * therefore a Buy intent is expected.
      */
     const auto intent =
         strategy.onMarketData(event);
@@ -102,16 +121,24 @@ TEST(
 
 TEST(
     MicrostructureStrategyTest,
-    GeneratesSellIntentForStrongAskImbalance)
+    GeneratesSellIntentForNegativeModelScore)
 {
     ArrayOrderBook marketBook;
 
+    const LinearSignalModel signalModel(
+        LinearSignalModel::ModelWeights{
+            .imbalance = 0.6,
+            .microPrice = 0.4,
+            .spread = 0.0
+        });
+
     MicrostructureStrategy strategy(
         marketBook,
+        signalModel,
         1001,
         10,
-        0.70,
-        0.30);
+        0.20,
+        -0.20);
 
     Order bidOrder{};
     bidOrder.id = 1;
@@ -149,9 +176,21 @@ TEST(
     };
 
     /*
-     * Bid-side imbalance is 0.25 and the microprice
-     * is below the midpoint, so the strategy should
-     * generate a sell signal.
+     * Features:
+     *
+     * imbalance = 0.25
+     * imbalanceSignal = -0.5
+     *
+     * microPrice = 100.25
+     * midPrice = 100.5
+     * microPriceSignal = -0.25
+     *
+     * score:
+     *
+     * 0.6 * -0.5 + 0.4 * -0.25 = -0.4
+     *
+     * -0.4 <= sell threshold -0.20
+     * therefore a Sell intent is expected.
      */
     const auto intent =
         strategy.onMarketData(event);
@@ -174,12 +213,20 @@ TEST(
 {
     ArrayOrderBook marketBook;
 
+    const LinearSignalModel signalModel(
+        LinearSignalModel::ModelWeights{
+            .imbalance = 0.6,
+            .microPrice = 0.4,
+            .spread = 0.0
+        });
+
     MicrostructureStrategy strategy(
         marketBook,
+        signalModel,
         1001,
         10,
-        0.70,
-        0.30);
+        0.20,
+        -0.20);
 
     Order bidOrder{};
     bidOrder.id = 1;
@@ -212,6 +259,15 @@ TEST(
         .quantity = 500
     };
 
+    /*
+     * Balanced quantities produce:
+     *
+     * imbalanceSignal = 0
+     * microPriceSignal = 0
+     * score = 0
+     *
+     * The score remains inside the no-trade region.
+     */
     const auto intent =
         strategy.onMarketData(event);
 

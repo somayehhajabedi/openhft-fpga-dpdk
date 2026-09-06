@@ -51,6 +51,7 @@ add_executable(parser_tests
     unit/mapper/order_cancel_mapper_test.cpp
     unit/strategy/market_feature_extractor_test.cpp
     unit/strategy/microstructure_strategy_test.cpp
+    unit/strategy/linear_signal_model_test.cpp
 
 
 

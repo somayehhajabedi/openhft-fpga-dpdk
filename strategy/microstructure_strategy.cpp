@@ -3,19 +3,17 @@
 #include "strategy/market_feature_extractor.hpp"
 
 /*
- * Evaluate the latest top-of-book state and generate an OrderIntent
- * when the microstructure model indicates directional pressure.
+ * MicrostructureStrategy
  *
- * Buy signal:
- *   - bid-side imbalance exceeds the configured threshold
- *   - microprice is above midpoint
+ * Evaluates the latest top-of-book state, obtains a directional
+ * score from the injected signal model, and converts that score
+ * into a trading decision.
  *
- * Sell signal:
- *   - bid-side imbalance falls below the configured threshold
- *   - microprice is below midpoint
- *
- * Otherwise no trading action is generated.
+ * The strategy owns only decision logic. Feature extraction and
+ * model inference remain separate so they can be reused and tested
+ * independently.
  */
+
 std::optional<OrderIntent>
 MicrostructureStrategy::onMarketData(
     const MarketDataEvent& event)
@@ -32,9 +30,10 @@ MicrostructureStrategy::onMarketData(
     const MarketFeatures& market =
         *features;
 
-    if (
-        market.imbalance >= buyImbalanceThreshold_ &&
-        market.microPrice > market.midPrice)
+    const double score =
+        signalModel_.predict(market);
+
+    if (score >= buyScoreThreshold_)
     {
         return OrderIntent{
             .accountId = accountId_,
@@ -45,9 +44,7 @@ MicrostructureStrategy::onMarketData(
         };
     }
 
-    if (
-        market.imbalance <= sellImbalanceThreshold_ &&
-        market.microPrice < market.midPrice)
+    if (score <= sellScoreThreshold_)
     {
         return OrderIntent{
             .accountId = accountId_,
@@ -64,17 +61,17 @@ MicrostructureStrategy::onMarketData(
 
 MicrostructureStrategy::MicrostructureStrategy(
     const MarketView& marketView,
+    const LinearSignalModel& signalModel,
     AccountId accountId,
     Quantity quantity,
-    double buyImbalanceThreshold,
-    double sellImbalanceThreshold)
+    double buyScoreThreshold,
+    double sellScoreThreshold)
     :
     marketView_(marketView),
+    signalModel_(signalModel),
     accountId_(accountId),
     quantity_(quantity),
-    buyImbalanceThreshold_(
-        buyImbalanceThreshold),
-    sellImbalanceThreshold_(
-        sellImbalanceThreshold)
+    buyScoreThreshold_(buyScoreThreshold),
+    sellScoreThreshold_(sellScoreThreshold)
 {
 }
