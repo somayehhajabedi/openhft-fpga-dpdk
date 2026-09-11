@@ -1,8 +1,27 @@
+/*
+ * Trading Runtime
+ * ---------------
+ * Composition root for the trading application.
+ *
+ * Responsibilities:
+ * - Parse runtime configuration.
+ * - Build and wire the market-data, strategy, risk, gateway,
+ *   and OUCH execution components.
+ * - Select the execution transport at runtime:
+ *     RecordingOuchTransport for local testing/debugging.
+ *     TlsOuchTransport for encrypted exchange connectivity.
+ * - Run either replay-based or DPDK-based market-data input.
+ *
+ * This file exists to keep object construction and dependency wiring
+ * outside the business-logic components.
+ */
+
 #include "dpdk/receiver/itch_udp_payload_sink.hpp"
 #include "dpdk/receiver/receiver.hpp"
 
 #include "execution/ouch/ouch_execution_sink.hpp"
 #include "execution/ouch/ouch_transport.hpp"
+#include "execution/ouch/tls_ouch_transport.hpp"
 
 #include "gateway/gateway.hpp"
 #include "gateway/gateway_order_intent_sink.hpp"
@@ -22,12 +41,18 @@
 #include "strategy/strategy_engine.hpp"
 #include "strategy/microstructure_strategy.hpp"
 #include "strategy/linear_signal_model.hpp"
+#include "execution/ouch/accepted_encoder.hpp"
+#include "execution/ouch/ouch_response_dispatcher.hpp"
+
+#include <array>
+#include <variant>
 
 #include <array>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -42,6 +67,13 @@ enum class InputMode
 {
     Replay,
     Dpdk
+};
+
+
+enum class ExecutionMode
+{
+    Recording,
+    Tls
 };
 
 
@@ -119,16 +151,67 @@ bool parseCpuIndex(
 }
 
 
+bool parsePort(
+    std::string_view value,
+    std::uint16_t& port)
+{
+    unsigned int parsedPort = 0;
+
+    const char* begin =
+        value.data();
+
+    const char* end =
+        value.data() + value.size();
+
+    const auto [ptr, error] =
+        std::from_chars(
+            begin,
+            end,
+            parsedPort);
+
+    if (error != std::errc{} ||
+        ptr != end ||
+        parsedPort == 0 ||
+        parsedPort > 65535)
+    {
+        return false;
+    }
+
+    port =
+        static_cast<std::uint16_t>(
+            parsedPort);
+
+    return true;
+}
+
+
 void printUsage()
 {
     std::cerr
         << "Usage:\n"
         << "  trading_runtime --mode replay <itch_replay_file> "
-        << "[--pipeline-cpu <cpu>]\n"
+        << "[--pipeline-cpu <cpu>] "
+        << "[--execution recording]\n"
+        << '\n'
+        << "  trading_runtime --mode replay <itch_replay_file> "
+        << "[--pipeline-cpu <cpu>] "
+        << "--execution tls "
+        << "--host <ip> "
+        << "--port <port> "
+        << "--ca <certificate>\n"
         << '\n'
         << "  trading_runtime --mode dpdk "
         << "[--rx-cpu <cpu>] "
-        << "[--pipeline-cpu <cpu>]\n";
+        << "[--pipeline-cpu <cpu>] "
+        << "[--execution recording]\n"
+        << '\n'
+        << "  trading_runtime --mode dpdk "
+        << "[--rx-cpu <cpu>] "
+        << "[--pipeline-cpu <cpu>] "
+        << "--execution tls "
+        << "--host <ip> "
+        << "--port <port> "
+        << "--ca <certificate>\n";
 }
 
 } // namespace
@@ -151,6 +234,18 @@ int main(
     std::optional<std::size_t> rxCpu;
 
     std::optional<std::size_t> pipelineCpu;
+
+    ExecutionMode executionMode =
+        ExecutionMode::Recording;
+
+    std::string executionHost =
+        "127.0.0.1";
+
+    std::uint16_t executionPort =
+        0;
+
+    std::string caCertificatePath;
+
 
     for (int index = 1;
          index < argc;
@@ -275,6 +370,101 @@ int main(
             continue;
         }
 
+        if (argument == "--execution")
+        {
+            if (index + 1 >= argc)
+            {
+                std::cerr
+                    << "Missing value for --execution\n";
+
+                return 1;
+            }
+
+            const std::string_view executionValue =
+                argv[++index];
+
+            if (executionValue == "recording")
+            {
+                executionMode =
+                    ExecutionMode::Recording;
+            }
+            else if (executionValue == "tls")
+            {
+                executionMode =
+                    ExecutionMode::Tls;
+            }
+            else
+            {
+                std::cerr
+                    << "Unknown execution mode: "
+                    << executionValue
+                    << '\n';
+
+                return 1;
+            }
+
+            continue;
+        }
+
+        if (argument == "--host")
+        {
+            if (index + 1 >= argc)
+            {
+                std::cerr
+                    << "Missing value for --host\n";
+
+                return 1;
+            }
+
+            executionHost =
+                argv[++index];
+
+            continue;
+        }
+
+        if (argument == "--port")
+        {
+            if (index + 1 >= argc)
+            {
+                std::cerr
+                    << "Missing value for --port\n";
+
+                return 1;
+            }
+
+            if (!parsePort(
+                    argv[index + 1],
+                    executionPort))
+            {
+                std::cerr
+                    << "Invalid execution port: "
+                    << argv[index + 1]
+                    << '\n';
+
+                return 1;
+            }
+
+            ++index;
+
+            continue;
+        }
+
+        if (argument == "--ca")
+        {
+            if (index + 1 >= argc)
+            {
+                std::cerr
+                    << "Missing value for --ca\n";
+
+                return 1;
+            }
+
+            caCertificatePath =
+                argv[++index];
+
+            continue;
+        }
+
         std::cerr
             << "Unknown argument: "
             << argument
@@ -284,6 +474,7 @@ int main(
 
         return 1;
     }
+
 
     if (!mode.has_value())
     {
@@ -312,6 +503,26 @@ int main(
 
         return 1;
     }
+
+    if (executionMode == ExecutionMode::Tls)
+    {
+        if (executionPort == 0)
+        {
+            std::cerr
+                << "TLS execution requires --port\n";
+
+            return 1;
+        }
+
+        if (caCertificatePath.empty())
+        {
+            std::cerr
+                << "TLS execution requires --ca\n";
+
+            return 1;
+        }
+    }
+
 
     if (pipelineCpu.has_value())
     {
@@ -342,6 +553,7 @@ int main(
         }
     }
 
+
     //
     // Local reconstructed market-data order book.
     //
@@ -350,7 +562,7 @@ int main(
     MarketDataBookConsumer bookConsumer(
         marketBook);
 
-    
+
     //
     // Strategy.
     //
@@ -372,17 +584,88 @@ int main(
         0.20,   // Buy score threshold
         -0.20); // Sell score threshold
 
-
     StrategyEngine strategyEngine(
         strategy);
+
+
+    //
+    // Execution transport.
+    //
+    // The concrete implementation is selected here in the
+    // composition root. Downstream components depend only on
+    // the OuchTransport interface.
+    //
+    std::unique_ptr<ouch::OuchTransport>
+        transport;
+
+    RecordingOuchTransport*
+        recordingTransport = nullptr;
+
+    ouch::TlsOuchTransport*
+    tlsTransportRaw = nullptr;    
+
+
+    if (executionMode ==
+        ExecutionMode::Recording)
+    {
+        auto recording =
+            std::make_unique<
+                RecordingOuchTransport>();
+
+        recordingTransport =
+            recording.get();
+
+        transport =
+            std::move(recording);
+
+        std::cout
+            << "Execution transport: recording\n";
+    }
+    else
+    {
+        auto tlsTransport =
+            std::make_unique<
+                ouch::TlsOuchTransport>(
+                    executionHost,
+                    executionPort,
+                    caCertificatePath);
+        tlsTransportRaw = tlsTransport.get();            
+
+        std::cout
+            << "Execution transport: TLS\n";
+
+        std::cout
+            << "Exchange host: "
+            << executionHost
+            << '\n';
+
+        std::cout
+            << "Exchange port: "
+            << executionPort
+            << '\n';
+
+        if (!tlsTransport->connect())
+        {
+            std::cerr
+                << "Failed to establish TLS "
+                << "connection to exchange\n";
+
+            return 1;
+        }
+
+        std::cout
+            << "TLS connection established\n";
+
+        transport =
+            std::move(tlsTransport);
+    }
+
 
     //
     // Execution path.
     //
-    RecordingOuchTransport transport;
-
     ouch::OuchExecutionSink executionSink(
-        transport);
+        *transport);
 
     RiskManager riskManager;
 
@@ -392,6 +675,7 @@ int main(
 
     GatewayOrderIntentSink intentSink(
         gateway);
+
 
     //
     // Market-data consumer:
@@ -408,12 +692,14 @@ int main(
         strategyEngine,
         intentSink);
 
+
     //
     // SPSC market-data pipeline.
     //
     MarketDataPipeline pipeline(
         consumer,
         pipelineCpu);
+
 
     //
     // Raw ITCH bytes
@@ -422,6 +708,7 @@ int main(
     //
     ItchReplayDispatcher itchDispatcher(
         pipeline);
+
 
     if (mode.value() == InputMode::Replay)
     {
@@ -461,6 +748,51 @@ int main(
         }
 
         pipeline.stop();
+
+        if (tlsTransportRaw != nullptr)
+{
+    std::array<
+        std::uint8_t,
+        ouch::AcceptedEncoder::AcceptedSize>
+        response{};
+
+    if (tlsTransportRaw->receive(
+            response.data(),
+            response.size()))
+    {
+        const auto dispatched =
+            ouch::OuchResponseDispatcher::dispatch(
+                response.data(),
+                response.size());
+
+        if (dispatched.has_value() &&
+            std::holds_alternative<
+                ouch::Accepted>(
+                    *dispatched))
+        {
+            const auto& accepted =
+                std::get<
+                    ouch::Accepted>(
+                        *dispatched);
+
+            std::cout
+                << "Received OUCH Accepted. "
+                << "userRefNum="
+                << accepted.userRefNum
+                << '\n';
+        }
+        else
+        {
+            std::cerr
+                << "Failed to decode OUCH response\n";
+        }
+    }
+    else
+    {
+        std::cerr
+            << "Failed to receive OUCH response\n";
+    }
+}
 
         std::cout
             << "Replay complete. "
@@ -519,6 +851,7 @@ int main(
         pipeline.stop();
     }
 
+
     const PriceLevel* bestBid =
         marketBook.bestBid();
 
@@ -541,14 +874,17 @@ int main(
             << '\n';
     }
 
-    if (transport.sent())
+
+    if (recordingTransport != nullptr &&
+        recordingTransport->sent())
     {
         std::cout
             << "Execution path reached OUCH transport. "
             << "last message bytes="
-            << transport.lastLength()
+            << recordingTransport->lastLength()
             << '\n';
     }
+
 
     return 0;
 }

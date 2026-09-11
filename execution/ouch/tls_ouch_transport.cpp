@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include <utility>
+#include <iostream>
 
 namespace ouch
 {
@@ -181,8 +182,21 @@ bool TlsOuchTransport::connect()
         return false;
     }
 
-    return true;
-}
+    // TLS handshake succeeded.
+    // Print the protocol version and cipher suite negotiated
+    // between this client and the exchange server.
+    std::cout
+        << "TLS version: "
+        << SSL_get_version(ssl_)
+        << '\n';
+
+    std::cout
+        << "TLS cipher: "
+        << SSL_get_cipher_name(ssl_)
+        << '\n';
+
+        return true;
+    }
 
 bool TlsOuchTransport::send(
     const std::uint8_t* data,

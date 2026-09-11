@@ -11,6 +11,7 @@
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <iostream>
 
 #include <utility>
 
@@ -672,6 +673,15 @@ bool ExchangeTcpServer::handleClientReadable(
             if (state.receivedBytes ==
                 EnterOrderSize)
             {
+
+
+                std::cout
+                << "Received OUCH EnterOrder over "
+                << (state.ssl != nullptr ? "TLS" : "TCP")
+                << ". bytes="
+                << state.receivedBytes
+                << '\n';
+
                 const auto response =
                     handler_.handleEnterOrder(
                         accountId_,

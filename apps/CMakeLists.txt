@@ -42,3 +42,22 @@ target_link_libraries(
         dpdk_receiver_core
 
 )
+add_executable(
+    exchange_runtime
+    exchange_runtime.cpp
+)
+
+target_include_directories(
+    exchange_runtime
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(
+    exchange_runtime
+    PRIVATE
+        exchange
+        matching_engine_core
+        ouch
+        logging
+)
