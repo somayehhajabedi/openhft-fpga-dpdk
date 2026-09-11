@@ -18,6 +18,10 @@
 namespace
 {
 
+  
+constexpr bool EnableOuchDebugLog = false;
+    
+
 template <typename... Args>
 void logInfo(
     spdlog::format_string_t<Args...> format,
@@ -675,12 +679,15 @@ bool ExchangeTcpServer::handleClientReadable(
             {
 
 
+            if (EnableOuchDebugLog)
+            {
                 std::cout
-                << "Received OUCH EnterOrder over "
-                << (state.ssl != nullptr ? "TLS" : "TCP")
-                << ". bytes="
-                << state.receivedBytes
-                << '\n';
+                    << "Received OUCH EnterOrder over "
+                    << (state.ssl != nullptr ? "TLS" : "TCP")
+                    << ". bytes="
+                    << state.receivedBytes
+                    << '\n';
+            }
 
                 const auto response =
                     handler_.handleEnterOrder(

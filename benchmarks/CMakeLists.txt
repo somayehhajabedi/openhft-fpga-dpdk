@@ -226,3 +226,23 @@ target_link_libraries(
         orderbook
         Threads::Threads
 )
+add_executable(
+    ouch_tls_round_trip_benchmark
+    ouch_tls_round_trip_benchmark.cpp
+)
+
+target_include_directories(
+    ouch_tls_round_trip_benchmark
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(
+    ouch_tls_round_trip_benchmark
+    PRIVATE
+        ouch
+        exchange
+        matching_engine_core
+        orderbook
+        Threads::Threads
+)
