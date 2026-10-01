@@ -181,14 +181,7 @@ private:
     {
         return (index + 1) % Capacity;
     }
-    void clearDeletedEntries()
-    {
-        for (Entry& entry : entries_)
-        {
-            if (entry.state == EntryState::Deleted)
-                entry.state = EntryState::Empty;
-        }
-    }
+    
 
     std::array<Entry, Capacity> entries_{};
     std::size_t size_ = 0;

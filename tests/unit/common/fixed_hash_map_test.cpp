@@ -136,3 +136,34 @@ TEST(FixedHashMapTest, ReusesDeletedEntriesAfterBecomingEmpty)
     EXPECT_EQ(*value, 50);
     EXPECT_EQ(map.size(), 1u);
 }
+TEST(FixedHashMapTest, ReusesDeletedSlotWhenNoEmptySlotExists)
+{
+    FixedHashMap<int, int, 2> map;
+
+    EXPECT_TRUE(map.insert(0, 10));
+    EXPECT_TRUE(map.insert(1, 20));
+
+    EXPECT_TRUE(map.erase(0));
+
+    EXPECT_TRUE(map.insert(2, 30));
+
+    EXPECT_EQ(*map.find(2), 30);
+    EXPECT_EQ(*map.find(1), 20);
+    EXPECT_EQ(map.size(), 2u);
+}
+
+TEST(FixedHashMapTest, FindAcrossWrapAroundAndTombstone)
+{
+    FixedHashMap<int, int, 4> map;
+
+    EXPECT_TRUE(map.insert(3, 30));
+    EXPECT_TRUE(map.insert(7, 70));
+    EXPECT_TRUE(map.insert(11, 110));
+
+    EXPECT_TRUE(map.erase(7));
+
+    const auto* value = map.find(11);
+
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(*value, 110);
+}
