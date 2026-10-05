@@ -83,3 +83,25 @@ TEST(OrderPoolTest, DoesNotOwnNullptr)
 
     EXPECT_FALSE(pool.owns(nullptr));
 }
+
+TEST(OrderPoolTest, DoesNotAcceptExternalOrderOnRelease)
+{
+    OrderPool pool(2);
+
+    Order external{};
+
+    pool.release(&external);
+
+    EXPECT_EQ(pool.available(), 2u);
+}
+TEST(OrderPoolTest, DoesNotAllowDoubleRelease)
+{
+    OrderPool pool(1);
+
+    Order* order = pool.acquire();
+    ASSERT_NE(order, nullptr);
+
+    pool.release(order);
+    pool.release(order);   
+    EXPECT_EQ(pool.available(), 1u);
+}

@@ -4,11 +4,13 @@
 
 #include <cstddef>
 #include <vector>
+#include <cstdint>
 
 class OrderPool
 {
 public:
     explicit OrderPool(std::size_t capacity);
+    
 
     Order* acquire();
 
@@ -24,4 +26,5 @@ public:
 private:
     std::vector<Order> storage_;
     std::vector<Order*> free_list_;
+    std::vector<std::uint8_t> in_use_;
 };
