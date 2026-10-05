@@ -1,3 +1,4 @@
+
 #include "receiver.hpp"
 #include "config.hpp"
 
@@ -7,6 +8,7 @@
 #include "../parser/ipv4/ipv4.hpp"
 #include "../parser/udp/udp.hpp"
 
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <span>
@@ -78,7 +80,6 @@ void Receiver::run()
         << std::endl;
 
     listPorts();
-
     printPortInfo();
 
     if (!createMempool())
@@ -113,6 +114,12 @@ void Receiver::run()
 
     rte_mbuf* packets[BURST_SIZE];
 
+    std::uint64_t packetCount = 0;
+    std::uint64_t byteCount = 0;
+
+    auto lastReport =
+        std::chrono::steady_clock::now();
+
     while (true)
     {
         const std::uint16_t received =
@@ -121,17 +128,6 @@ void Receiver::run()
                 0,
                 packets,
                 BURST_SIZE);
-
-        if (received == 0)
-        {
-            continue;
-        }
-
-        std::cout
-            << "Received "
-            << received
-            << " packets"
-            << std::endl;
 
         for (std::uint16_t i = 0;
              i < received;
@@ -175,13 +171,11 @@ void Receiver::run()
                 EthernetParser::payload(
                     ethernet);
 
-            const std::size_t
-                ipv4AvailableLength =
-                    packetLength -
-                    sizeof(EthernetHeader);
+            const std::size_t ipv4AvailableLength =
+                packetLength -
+                sizeof(EthernetHeader);
 
-            const std::span<
-                const std::uint8_t>
+            const std::span<const std::uint8_t>
                 ipv4View{
                     ipv4Data,
                     ipv4AvailableLength};
@@ -206,13 +200,11 @@ void Receiver::run()
                 IPv4Parser::payload(
                     ipv4);
 
-            const std::size_t
-                udpAvailableLength =
-                    IPv4Parser::payloadLength(
-                        ipv4);
+            const std::size_t udpAvailableLength =
+                IPv4Parser::payloadLength(
+                    ipv4);
 
-            const std::span<
-                const std::uint8_t>
+            const std::span<const std::uint8_t>
                 udpView{
                     udpData,
                     udpAvailableLength};
@@ -227,29 +219,90 @@ void Receiver::run()
                 continue;
             }
 
+            // Only count packets from our benchmark traffic.
+            if (UDPParser::destinationPort(udp) != 9000)
+            {
+                rte_pktmbuf_free(packet);
+                continue;
+            }
+
+            ++packetCount;
+            byteCount += packetLength;
+
             const std::uint8_t* payload =
                 UDPParser::payload(
                     udp);
 
-            const std::uint16_t
-                payloadLength =
-                    UDPParser::payloadLength(
-                        udp);
+            const std::uint16_t payloadLength =
+                UDPParser::payloadLength(
+                    udp);
 
             const std::span<const std::uint8_t>
                 payloadView{
                     payload,
                     payloadLength};
 
-if (payloadSink_ != nullptr)
-{
-    static_cast<void>(
-        payloadSink_->submit(
-            payloadView));
-}
-
+            if (payloadSink_ != nullptr)
+            {
+                static_cast<void>(
+                    payloadSink_->submit(
+                        payloadView));
+            }
 
             rte_pktmbuf_free(packet);
+        }
+
+        const auto now =
+            std::chrono::steady_clock::now();
+
+        const auto elapsed =
+            std::chrono::duration<double>(
+                now - lastReport)
+                .count();
+
+        if (elapsed >= 1.0)
+        {
+            const double packetsPerSecond =
+                static_cast<double>(packetCount) /
+                elapsed;
+
+            const double mbps =
+                (static_cast<double>(byteCount) * 8.0) /
+                elapsed /
+                1'000'000.0;
+
+            rte_eth_stats stats{};
+
+            const int statsResult =
+                rte_eth_stats_get(
+                    0,
+                    &stats);
+
+            std::cout
+                << "RX: "
+                << static_cast<std::uint64_t>(
+                       packetsPerSecond)
+                << " packets/s"
+                << " | "
+                << mbps
+                << " Mbps";
+
+            if (statsResult == 0)
+            {
+                std::cout
+                    << " | imissed: "
+                    << stats.imissed
+                    << " | ierrors: "
+                    << stats.ierrors
+                    << " | rx_nombuf: "
+                    << stats.rx_nombuf;
+            }
+
+            std::cout << '\n';
+
+            packetCount = 0;
+            byteCount = 0;
+            lastReport = now;
         }
     }
 }
